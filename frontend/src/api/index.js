@@ -1,6 +1,14 @@
-const API_BASE = '/api'
+// Get base path from injected script (HA Ingress) or default to empty
+function getBasePath() {
+  return window.__BASE_PATH__ || ''
+}
+
+function getApiBase() {
+  return `${getBasePath()}/api`
+}
 
 async function request(method, path, data = null) {
+  const API_BASE = getApiBase()
   const options = {
     method,
     headers: {
@@ -71,4 +79,5 @@ export const api = {
   testMQTTConnection: (data) => request('POST', '/mqtt/test', data),
 }
 
+export { getBasePath }
 export default api

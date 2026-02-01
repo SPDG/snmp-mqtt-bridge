@@ -1,11 +1,13 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"embed"
 	"fmt"
 	"io/fs"
 	"net/http"
+	"strings"
 	"time"
 
 	"snmp-mqtt-bridge/internal/api/handler"
@@ -151,26 +153,56 @@ func (s *Server) serveFrontend(frontendFS embed.FS) {
 		return
 	}
 
+	// Read index.html template once
+	indexHTML, err := fs.ReadFile(distFS, "index.html")
+	if err != nil {
+		indexHTML = []byte("<!DOCTYPE html><html><body>Frontend not available</body></html>")
+	}
+
 	staticServer := http.FileServer(http.FS(distFS))
 
 	// Serve static files
 	s.router.NoRoute(func(c *gin.Context) {
-		// Try to serve the file
 		path := c.Request.URL.Path
-		if path == "/" {
-			path = "/index.html"
+
+		// Get ingress path from header (HA Ingress) or config
+		ingressPath := c.GetHeader("X-Ingress-Path")
+		if ingressPath == "" {
+			ingressPath = s.cfg.Server.IngressPath
 		}
 
-		// Check if file exists
+		// Serve index.html with injected base path for SPA routes
+		if path == "/" || path == "/index.html" || !strings.Contains(path[1:], ".") {
+			// Inject base path into HTML
+			html := s.injectBasePath(indexHTML, ingressPath)
+			c.Data(http.StatusOK, "text/html; charset=utf-8", html)
+			return
+		}
+
+		// Check if static file exists
 		if _, err := fs.Stat(distFS, path[1:]); err == nil {
 			staticServer.ServeHTTP(c.Writer, c.Request)
 			return
 		}
 
 		// Fallback to index.html for SPA routing
-		c.Request.URL.Path = "/"
-		staticServer.ServeHTTP(c.Writer, c.Request)
+		html := s.injectBasePath(indexHTML, ingressPath)
+		c.Data(http.StatusOK, "text/html; charset=utf-8", html)
 	})
+}
+
+// injectBasePath injects the base path into the HTML for frontend routing
+func (s *Server) injectBasePath(html []byte, basePath string) []byte {
+	if basePath == "" {
+		return html
+	}
+
+	// Ensure basePath doesn't have trailing slash
+	basePath = strings.TrimSuffix(basePath, "/")
+
+	// Inject a script tag with the base path before </head>
+	script := fmt.Sprintf(`<script>window.__BASE_PATH__ = "%s";</script>`, basePath)
+	return bytes.Replace(html, []byte("</head>"), []byte(script+"</head>"), 1)
 }
 
 // Start starts the HTTP server

@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { RouterLink, RouterView } from 'vue-router'
 import { useDeviceStore } from './stores/devices'
+import { getBasePath } from './api'
 
 const deviceStore = useDeviceStore()
 const menuOpen = ref(false)
@@ -37,7 +38,8 @@ let ws = null
 
 function connectWebSocket() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const wsUrl = `${protocol}//${window.location.host}/api/ws`
+  const basePath = getBasePath()
+  const wsUrl = `${protocol}//${window.location.host}${basePath}/api/ws`
 
   ws = new WebSocket(wsUrl)
 
