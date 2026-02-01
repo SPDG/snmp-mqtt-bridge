@@ -30,7 +30,13 @@ func (s *SNMPService) SetValue(ctx context.Context, deviceID, oid string, value 
 		return fmt.Errorf("device not found: %w", err)
 	}
 
-	client := createSNMPClient(device.IPAddress, device.Port, device.Community, device.SNMPVersion)
+	// Use write community if set, otherwise use read community
+	community := device.Community
+	if device.WriteCommunity != "" {
+		community = device.WriteCommunity
+	}
+
+	client := createSNMPClient(device.IPAddress, device.Port, community, device.SNMPVersion)
 
 	if err := client.Connect(); err != nil {
 		return fmt.Errorf("failed to connect: %w", err)

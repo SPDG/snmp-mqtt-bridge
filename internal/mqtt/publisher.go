@@ -152,6 +152,9 @@ func (p *Publisher) publishState(event service.StateUpdateEvent) {
 	device := info.device
 	profile := info.profile
 
+	// Calculate Active Power if it's 0 or missing (P = V × I)
+	p.calculatePowerIfNeeded(event.Values)
+
 	// Check for source names to update select options
 	sourceAName, hasSourceA := event.Values["Source A Name"]
 	sourceBName, hasSourceB := event.Values["Source B Name"]
@@ -420,7 +423,7 @@ func (p *Publisher) readSNMPValue(device *domain.Device, oid string) (interface{
 
 // sendSNMPSet sends an SNMP SET command to the device
 func (p *Publisher) sendSNMPSet(device *domain.Device, oid string, value interface{}) error {
-	client := p.createSNMPClient(device)
+	client := p.createSNMPClientForWrite(device)
 
 	if err := client.Connect(); err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
@@ -450,8 +453,22 @@ func (p *Publisher) sendSNMPSet(device *domain.Device, oid string, value interfa
 	return nil
 }
 
-// createSNMPClient creates an SNMP client for the device
+// createSNMPClient creates an SNMP client for the device (for reading)
 func (p *Publisher) createSNMPClient(device *domain.Device) *gosnmp.GoSNMP {
+	return p.createSNMPClientWithCommunity(device, device.Community)
+}
+
+// createSNMPClientForWrite creates an SNMP client for SET operations, using write community if available
+func (p *Publisher) createSNMPClientForWrite(device *domain.Device) *gosnmp.GoSNMP {
+	community := device.Community
+	if device.WriteCommunity != "" {
+		community = device.WriteCommunity
+	}
+	return p.createSNMPClientWithCommunity(device, community)
+}
+
+// createSNMPClientWithCommunity creates an SNMP client with specified community
+func (p *Publisher) createSNMPClientWithCommunity(device *domain.Device, community string) *gosnmp.GoSNMP {
 	client := &gosnmp.GoSNMP{
 		Target:  device.IPAddress,
 		Port:    uint16(device.Port),
@@ -462,17 +479,17 @@ func (p *Publisher) createSNMPClient(device *domain.Device) *gosnmp.GoSNMP {
 	switch device.SNMPVersion {
 	case domain.SNMPv1:
 		client.Version = gosnmp.Version1
-		client.Community = device.Community
+		client.Community = community
 	case domain.SNMPv3:
 		client.Version = gosnmp.Version3
 		client.SecurityModel = gosnmp.UserSecurityModel
 		client.MsgFlags = gosnmp.NoAuthNoPriv
 		client.SecurityParameters = &gosnmp.UsmSecurityParameters{
-			UserName: device.Community,
+			UserName: community,
 		}
 	default:
 		client.Version = gosnmp.Version2c
-		client.Community = device.Community
+		client.Community = community
 	}
 
 	return client
@@ -516,6 +533,57 @@ func convertToSwitchValue(value interface{}) string {
 		return "ON"
 	}
 	return "OFF"
+}
+
+// calculatePowerIfNeeded calculates Active Power from Voltage × Current if not available
+func (p *Publisher) calculatePowerIfNeeded(values map[string]interface{}) {
+	// Check if Active Power is 0 or missing
+	activePower, hasPower := values["Active Power"]
+	powerIsZero := !hasPower
+
+	if hasPower {
+		switch v := activePower.(type) {
+		case float64:
+			powerIsZero = v == 0
+		case int:
+			powerIsZero = v == 0
+		case string:
+			powerIsZero = v == "0" || v == ""
+		}
+	}
+
+	if powerIsZero {
+		// Try to calculate from Voltage × Total Current
+		voltage := toFloat64(values["Voltage"])
+		current := toFloat64(values["Total Current"])
+
+		if voltage > 0 && current > 0 {
+			calculatedPower := voltage * current
+			// Round to 1 decimal place
+			values["Active Power"] = float64(int(calculatedPower*10)) / 10
+		}
+	}
+}
+
+// toFloat64 converts various types to float64
+func toFloat64(v interface{}) float64 {
+	if v == nil {
+		return 0
+	}
+	switch val := v.(type) {
+	case float64:
+		return val
+	case int:
+		return float64(val)
+	case int64:
+		return float64(val)
+	case string:
+		var f float64
+		fmt.Sscanf(val, "%f", &f)
+		return f
+	default:
+		return 0
+	}
 }
 
 // convertToBinarySensorValue converts a value to ON/OFF for binary sensors

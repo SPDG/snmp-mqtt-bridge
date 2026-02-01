@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useDeviceStore } from '../stores/devices'
 import api from '../api'
 
@@ -15,6 +15,7 @@ const form = ref({
   ip_address: '',
   port: 161,
   community: 'public',
+  write_community: '',
   snmp_version: 'v2c',
   profile_id: '',
   poll_interval: 0,
@@ -28,6 +29,31 @@ const devicesWithState = computed(() => {
   }))
 })
 
+// Get the selected profile
+const selectedProfile = computed(() => {
+  if (!form.value.profile_id) return null
+  return profiles.value.find(p => p.id === form.value.profile_id)
+})
+
+// Get allowed SNMP versions for the selected profile
+const allowedSnmpVersions = computed(() => {
+  if (selectedProfile.value?.snmp_versions?.length > 0) {
+    return selectedProfile.value.snmp_versions
+  }
+  // Default: all versions
+  return ['v1', 'v2c', 'v3']
+})
+
+// Watch for profile changes and auto-select SNMP version if needed
+watch(() => form.value.profile_id, () => {
+  if (selectedProfile.value?.snmp_versions?.length > 0) {
+    // If current version is not allowed, select first allowed version
+    if (!selectedProfile.value.snmp_versions.includes(form.value.snmp_version)) {
+      form.value.snmp_version = selectedProfile.value.snmp_versions[0]
+    }
+  }
+})
+
 onMounted(async () => {
   profiles.value = await api.getProfiles()
 })
@@ -39,6 +65,7 @@ function openCreateModal() {
     ip_address: '',
     port: 161,
     community: 'public',
+    write_community: '',
     snmp_version: 'v2c',
     profile_id: '',
     poll_interval: 0,
@@ -154,7 +181,19 @@ async function deleteDevice(device) {
           <h2 class="text-lg font-semibold">{{ editingDevice ? 'Edit Device' : 'Add Device' }}</h2>
         </div>
 
-        <div class="px-6 py-4 space-y-4 max-h-96 overflow-y-auto">
+        <div class="px-6 py-4 space-y-4">
+          <!-- Profile selection first -->
+          <div>
+            <label class="label">Profile <span class="text-red-500">*</span></label>
+            <select v-model="form.profile_id" class="input" required>
+              <option value="">-- Select Profile --</option>
+              <option v-for="p in profiles" :key="p.id" :value="p.id">{{ p.name }} ({{ p.manufacturer }})</option>
+            </select>
+            <p v-if="selectedProfile" class="text-xs text-gray-500 mt-1">
+              {{ selectedProfile.category.toUpperCase() }} - {{ selectedProfile.model }}
+            </p>
+          </div>
+
           <div>
             <label class="label">Name</label>
             <input v-model="form.name" class="input" placeholder="My UPS" required />
@@ -173,26 +212,25 @@ async function deleteDevice(device) {
 
           <div class="grid grid-cols-2 gap-4">
             <div>
+              <label class="label">SNMP Version</label>
+              <select v-model="form.snmp_version" class="input">
+                <option v-for="v in allowedSnmpVersions" :key="v" :value="v">{{ v }}</option>
+              </select>
+              <p v-if="allowedSnmpVersions.length === 1" class="text-xs text-gray-500 mt-1">
+                This profile only supports {{ allowedSnmpVersions[0] }}
+              </p>
+            </div>
+            <div>
               <label class="label">{{ form.snmp_version === 'v3' ? 'Username' : 'Community' }}</label>
               <input v-model="form.community" class="input" :placeholder="form.snmp_version === 'v3' ? 'snmpuser' : 'public'" />
               <p v-if="form.snmp_version === 'v3'" class="text-xs text-gray-500 mt-1">noAuthNoPriv mode</p>
             </div>
-            <div>
-              <label class="label">SNMP Version</label>
-              <select v-model="form.snmp_version" class="input">
-                <option value="v1">v1</option>
-                <option value="v2c">v2c</option>
-                <option value="v3">v3</option>
-              </select>
-            </div>
           </div>
 
-          <div>
-            <label class="label">Profile</label>
-            <select v-model="form.profile_id" class="input">
-              <option value="">-- Select Profile --</option>
-              <option v-for="p in profiles" :key="p.id" :value="p.id">{{ p.name }}</option>
-            </select>
+          <div v-if="form.snmp_version !== 'v3'">
+            <label class="label">Write Community (optional)</label>
+            <input v-model="form.write_community" class="input" placeholder="private" />
+            <p class="text-xs text-gray-500 mt-1">Used for SNMP SET commands (e.g., outlet control). Leave empty to use read community.</p>
           </div>
 
           <div>

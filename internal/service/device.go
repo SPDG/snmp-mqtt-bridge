@@ -25,18 +25,19 @@ func NewDeviceService(repo repository.DeviceRepository) *DeviceService {
 // Create creates a new device
 func (s *DeviceService) Create(ctx context.Context, req *domain.DeviceCreateRequest) (*domain.Device, error) {
 	device := &domain.Device{
-		ID:           uuid.New().String(),
-		Name:         req.Name,
-		IPAddress:    req.IPAddress,
-		Port:         req.Port,
-		Community:    req.Community,
-		SNMPVersion:  req.SNMPVersion,
-		ProfileID:    req.ProfileID,
-		PollInterval: req.PollInterval,
-		Enabled:      req.Enabled,
-		Labels:       req.Labels,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		ID:             uuid.New().String(),
+		Name:           req.Name,
+		IPAddress:      req.IPAddress,
+		Port:           req.Port,
+		Community:      req.Community,
+		WriteCommunity: req.WriteCommunity,
+		SNMPVersion:    req.SNMPVersion,
+		ProfileID:      req.ProfileID,
+		PollInterval:   req.PollInterval,
+		Enabled:        req.Enabled,
+		Labels:         req.Labels,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
 	}
 
 	if device.Port == 0 {
@@ -83,6 +84,9 @@ func (s *DeviceService) Update(ctx context.Context, id string, req *domain.Devic
 	}
 	if req.Community != nil {
 		device.Community = *req.Community
+	}
+	if req.WriteCommunity != nil {
+		device.WriteCommunity = *req.WriteCommunity
 	}
 	if req.SNMPVersion != nil {
 		device.SNMPVersion = *req.SNMPVersion

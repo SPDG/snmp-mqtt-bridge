@@ -49,24 +49,63 @@ const outlets = computed(() => {
   if (!state.value?.values || !isPDU.value) return []
 
   const result = []
+  const now = Date.now()
+  const PENDING_TIMEOUT = 10000 // 10 seconds
+
   for (let i = 1; i <= 8; i++) {
     const name = state.value.values[`Outlet ${i} Name`] || `Outlet ${i}`
-    const stateVal = state.value.values[`Outlet ${i} State`]
+    let stateVal = state.value.values[`Outlet ${i} State`]
+    const current = state.value.values[`Outlet ${i} Current`] ?? null
+
+    // Check if there's a pending state that should override poll data
+    const pending = pendingOutletStates.value[i]
+    if (pending && (now - pending.timestamp) < PENDING_TIMEOUT) {
+      // Use pending state to prevent stale poll data from reverting UI
+      stateVal = pending.expectedState
+    } else if (pending) {
+      // Clear expired pending state
+      delete pendingOutletStates.value[i]
+    }
+
     const isOn = stateVal === 'On' || stateVal === 1
     result.push({
       number: i,
       name,
       state: isOn ? 'On' : 'Off',
-      isOn
+      isOn,
+      current
     })
   }
   return result
+})
+
+// PDU summary data
+const pduSummary = computed(() => {
+  if (!state.value?.values || !isPDU.value) return null
+
+  const voltage = parseFloat(state.value.values['Voltage']) || 0
+  const totalCurrent = parseFloat(state.value.values['Total Current']) || 0
+  const activePower = parseFloat(state.value.values['Active Power']) || 0
+  const totalEnergy = parseFloat(state.value.values['Total Energy']) || 0
+
+  // Calculate power if not provided (P = V * I)
+  const calculatedPower = voltage * totalCurrent
+  const power = activePower > 0 ? activePower : calculatedPower
+
+  return {
+    voltage,
+    totalCurrent,
+    power,
+    totalEnergy
+  }
 })
 
 // PDU state
 const outletLoading = ref({})
 const editingOutletName = ref(null)
 const newOutletName = ref('')
+// Track pending outlet state changes to prevent stale poll data from reverting UI
+const pendingOutletStates = ref({}) // { outletNum: { expectedState: 'On'|'Off', timestamp: Date.now() } }
 
 const selectedSource = computed(() => {
   if (!state.value?.values) return null
@@ -148,14 +187,40 @@ function cancelEditSourceName() {
 async function toggleOutlet(outlet) {
   if (outletLoading.value[outlet.number]) return
   outletLoading.value[outlet.number] = true
+  const expectedState = outlet.isOn ? 'Off' : 'On'
   try {
     const newState = outlet.isOn ? 'off' : 'on'
     await api.setOutletState(device.value.id, outlet.number, newState)
+    // Set pending state immediately to prevent stale poll data from reverting UI
+    pendingOutletStates.value[outlet.number] = {
+      expectedState,
+      timestamp: Date.now()
+    }
+    // Wait briefly for poll to confirm the change
+    await waitForOutletState(outlet.number, expectedState, 3000)
   } catch (e) {
+    // Clear pending state on error
+    delete pendingOutletStates.value[outlet.number]
     alert('Error toggling outlet: ' + e.message)
   } finally {
     outletLoading.value[outlet.number] = false
   }
+}
+
+// Wait for outlet state to change or timeout
+async function waitForOutletState(outletNum, expectedState, timeoutMs) {
+  const startTime = Date.now()
+  while (Date.now() - startTime < timeoutMs) {
+    await new Promise(r => setTimeout(r, 300))
+    const currentState = state.value?.values?.[`Outlet ${outletNum} State`]
+    if (currentState === expectedState || currentState === (expectedState === 'On' ? 1 : 0)) {
+      // State confirmed - clear pending state
+      delete pendingOutletStates.value[outletNum]
+      return true
+    }
+  }
+  // Timeout - keep pending state active to prevent flickering
+  return false
 }
 
 async function rebootOutlet(outlet) {
@@ -178,13 +243,33 @@ function startEditOutletName(outlet) {
 
 async function saveOutletName() {
   if (!editingOutletName.value || !newOutletName.value.trim()) return
+  const outletNum = editingOutletName.value
+  const expectedName = newOutletName.value.trim()
+  outletLoading.value[outletNum] = true
   try {
-    await api.setOutletName(device.value.id, editingOutletName.value, newOutletName.value.trim())
+    await api.setOutletName(device.value.id, outletNum, expectedName)
+    // Wait for name to update (poll should trigger immediately)
+    await waitForOutletName(outletNum, expectedName, 5000)
     editingOutletName.value = null
     newOutletName.value = ''
   } catch (e) {
     alert('Error setting outlet name: ' + e.message)
+  } finally {
+    outletLoading.value[outletNum] = false
   }
+}
+
+// Wait for outlet name to change or timeout
+async function waitForOutletName(outletNum, expectedName, timeoutMs) {
+  const startTime = Date.now()
+  while (Date.now() - startTime < timeoutMs) {
+    await new Promise(r => setTimeout(r, 300))
+    const currentName = state.value?.values?.[`Outlet ${outletNum} Name`]
+    if (currentName === expectedName) {
+      return true
+    }
+  }
+  return false
 }
 
 function cancelEditOutletName() {
@@ -422,8 +507,20 @@ function getValueByMapping(mapping) {
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div v-for="outlet in outlets" :key="outlet.number"
-               class="p-4 rounded-lg border-2 transition-colors"
+               class="p-4 rounded-lg border-2 transition-colors relative"
                :class="outlet.isOn ? 'border-green-500 bg-green-50 dark:bg-dracula-green/10 dark:border-dracula-green' : 'border-gray-200 bg-gray-50 dark:border-dracula-comment/50 dark:bg-dracula-bg/50'">
+            <!-- Loading overlay -->
+            <div v-if="outletLoading[outlet.number]"
+                 class="absolute inset-0 bg-white/70 dark:bg-dracula-bg/70 rounded-lg flex items-center justify-center z-10">
+              <div class="flex flex-col items-center">
+                <svg class="animate-spin h-8 w-8 text-blue-500 dark:text-dracula-purple" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span class="text-sm mt-2 text-gray-600 dark:text-dracula-fg">Switching...</span>
+              </div>
+            </div>
+
             <div class="flex justify-between items-start mb-2">
               <div class="flex-1 min-w-0">
                 <template v-if="editingOutletName === outlet.number">
@@ -447,12 +544,19 @@ function getValueByMapping(mapping) {
               </span>
             </div>
 
+            <!-- Outlet current -->
+            <div class="text-center mb-2">
+              <span class="text-lg font-semibold dark:text-dracula-yellow">
+                {{ outlet.current !== null ? outlet.current.toFixed(1) : '-' }} A
+              </span>
+            </div>
+
             <div class="flex gap-2 mt-3">
               <button @click="toggleOutlet(outlet)"
                       :disabled="outletLoading[outlet.number]"
                       class="btn text-sm flex-1"
                       :class="outlet.isOn ? 'btn-secondary' : 'btn-primary'">
-                {{ outletLoading[outlet.number] ? '...' : (outlet.isOn ? 'Turn Off' : 'Turn On') }}
+                {{ outlet.isOn ? 'Turn Off' : 'Turn On' }}
               </button>
               <button @click="rebootOutlet(outlet)"
                       :disabled="outletLoading[outlet.number] || !outlet.isOn"
@@ -467,18 +571,30 @@ function getValueByMapping(mapping) {
 
         <!-- PDU Load Info -->
         <div class="mt-6 p-4 bg-gray-50 dark:bg-dracula-bg/50 rounded-lg">
-          <h3 class="font-medium mb-3 text-gray-900 dark:text-dracula-fg">Load</h3>
-          <div class="grid grid-cols-2 gap-4 text-center">
+          <h3 class="font-medium mb-3 text-gray-900 dark:text-dracula-fg">Power Summary</h3>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div>
-              <p class="text-sm text-gray-500 dark:text-dracula-cyan">Current</p>
+              <p class="text-sm text-gray-500 dark:text-dracula-cyan">Voltage</p>
               <p class="text-xl font-semibold text-gray-900 dark:text-dracula-yellow">
-                {{ state?.values?.['Load'] || '-' }} A
+                {{ pduSummary?.voltage > 0 ? pduSummary.voltage.toFixed(1) : '-' }} V
               </p>
             </div>
             <div>
-              <p class="text-sm text-gray-500 dark:text-dracula-cyan">Load State</p>
-              <p class="text-xl font-semibold text-gray-900 dark:text-dracula-green">
-                {{ state?.values?.['Load State'] || '-' }}
+              <p class="text-sm text-gray-500 dark:text-dracula-cyan">Total Current</p>
+              <p class="text-xl font-semibold text-gray-900 dark:text-dracula-yellow">
+                {{ pduSummary?.totalCurrent > 0 ? pduSummary.totalCurrent.toFixed(2) : '-' }} A
+              </p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500 dark:text-dracula-cyan">Power</p>
+              <p class="text-xl font-semibold text-gray-900 dark:text-dracula-yellow">
+                {{ pduSummary?.power > 0 ? pduSummary.power.toFixed(1) : '-' }} W
+              </p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500 dark:text-dracula-cyan">Total Energy</p>
+              <p class="text-xl font-semibold text-gray-900 dark:text-dracula-yellow">
+                {{ pduSummary?.totalEnergy > 0 ? pduSummary.totalEnergy.toFixed(3) : '-' }} kWh
               </p>
             </div>
           </div>
@@ -570,7 +686,7 @@ function getValueByMapping(mapping) {
           <button @click="deleteDevice" class="text-red-600 dark:text-dracula-red hover:text-red-800 text-sm">Delete Device</button>
         </div>
 
-        <div class="px-6 py-4 space-y-4 max-h-96 overflow-y-auto">
+        <div class="px-6 py-4 space-y-4">
           <div>
             <label class="label">Name</label>
             <input v-model="form.name" class="input" placeholder="My UPS" required />

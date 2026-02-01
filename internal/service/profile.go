@@ -103,6 +103,7 @@ func (s *ProfileService) loadProfileFile(ctx context.Context, path string) error
 		Model:        profileYAML.Model,
 		Category:     profileYAML.Category,
 		SysObjectID:  profileYAML.SysObjectID,
+		SNMPVersions: profileYAML.SNMPVersions,
 		OIDMappings:  oidMappings,
 		IsBuiltin:    true,
 	}

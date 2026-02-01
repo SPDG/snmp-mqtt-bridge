@@ -120,7 +120,7 @@ func (s *Server) setupRoutes(frontendFS embed.FS) {
 
 		// Device commands (SNMP SET)
 		if s.services.SNMP != nil {
-			commandHandler := handler.NewCommandHandler(s.services.SNMP, s.services.Poller)
+			commandHandler := handler.NewCommandHandler(s.services.SNMP, s.services.Poller, s.services.Device)
 			devices.POST("/:id/set", commandHandler.SetValue)
 			devices.GET("/:id/get", commandHandler.GetValue)
 			// ATS commands
