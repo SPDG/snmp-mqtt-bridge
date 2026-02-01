@@ -1,8 +1,9 @@
-# Binaries (root level only, not cmd/snmp-bridge/)
+# Binaries (root level only)
 /snmp-bridge
 /snmp-bridge.exe
-/snmp-mqtt-bridge
-/snmp-mqtt-bridge.exe
+# Binary file (not folder)
+snmp-mqtt-bridge.exe
+# Note: snmp-mqtt-bridge binary would conflict with addon folder, build as snmp-bridge instead
 *.exe
 *.exe~
 *.dll
