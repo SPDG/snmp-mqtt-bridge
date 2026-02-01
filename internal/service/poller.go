@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"strings"
 	"sync"
 	"time"
 
@@ -281,13 +282,14 @@ func (s *PollerService) doPoll(dp *devicePoller) {
 		log.Printf("[DEBUG] Polling %d OIDs for device %s (poll #%d)", len(oids), dp.device.ID, dp.pollCount)
 	}
 
-	// Build OID to mapping lookup for faster matching
-	oidToMapping := make(map[string]*domain.OIDMapping)
+	// Build OID to mappings lookup for faster matching
+	// Multiple mappings can share the same OID (e.g., composite_switch for individual outlets)
+	oidToMappings := make(map[string][]*domain.OIDMapping)
 	if dp.profile != nil {
 		for i := range dp.profile.OIDMappings {
 			mapping := &dp.profile.OIDMappings[i]
 			normalizedOID := normalizeOID(mapping.OID)
-			oidToMapping[normalizedOID] = mapping
+			oidToMappings[normalizedOID] = append(oidToMappings[normalizedOID], mapping)
 		}
 	}
 
@@ -336,9 +338,12 @@ func (s *PollerService) doPoll(dp *devicePoller) {
 						value := s.parseValue(variable)
 						if value != nil {
 							normalizedOID := normalizeOID(variable.Name)
-							if mapping, exists := oidToMapping[normalizedOID]; exists {
-								value = s.transformValue(value, mapping)
-								values[mapping.Name] = value
+							// Apply transformations for all mappings that use this OID
+							if mappings, exists := oidToMappings[normalizedOID]; exists {
+								for _, mapping := range mappings {
+									transformedValue := s.transformValue(value, mapping)
+									values[mapping.Name] = transformedValue
+								}
 							}
 							values[variable.Name] = value
 						}
@@ -364,10 +369,12 @@ func (s *PollerService) doPoll(dp *devicePoller) {
 				continue
 			}
 
-			// Apply profile transformations
-			if mapping, exists := oidToMapping[normalizedOID]; exists {
-				value = s.transformValue(value, mapping)
-				values[mapping.Name] = value
+			// Apply profile transformations for all mappings that use this OID
+			if mappings, exists := oidToMappings[normalizedOID]; exists {
+				for _, mapping := range mappings {
+					transformedValue := s.transformValue(value, mapping)
+					values[mapping.Name] = transformedValue
+				}
 			}
 			values[variable.Name] = value
 		}
@@ -387,7 +394,8 @@ func (s *PollerService) getOIDsToPoll(dp *devicePoller) []string {
 		return nil
 	}
 
-	oids := make([]string, 0)
+	// Use a map to deduplicate OIDs (composite_switch mappings share the same OID)
+	oidSet := make(map[string]bool)
 	pollGroups := map[string]int{
 		"frequent": 1,
 		"static":   10,
@@ -405,8 +413,14 @@ func (s *PollerService) getOIDsToPoll(dp *devicePoller) []string {
 		}
 
 		if dp.pollCount%interval == 0 {
-			oids = append(oids, mapping.OID)
+			oidSet[mapping.OID] = true
 		}
+	}
+
+	// Convert set to slice
+	oids := make([]string, 0, len(oidSet))
+	for oid := range oidSet {
+		oids = append(oids, oid)
 	}
 
 	return oids
@@ -434,6 +448,11 @@ func (s *PollerService) parseValue(variable gosnmp.SnmpPDU) interface{} {
 }
 
 func (s *PollerService) transformValue(value interface{}, mapping *domain.OIDMapping) interface{} {
+	// Handle composite_switch type - extract value at specified index from comma-separated string
+	if mapping.Type == domain.OIDTypeCompositeSwitch {
+		return s.extractCompositeValue(value, mapping)
+	}
+
 	// Apply scale
 	if mapping.Scale != 0 {
 		var scaled float64
@@ -470,6 +489,42 @@ func (s *PollerService) transformValue(value interface{}, mapping *domain.OIDMap
 	}
 
 	return value
+}
+
+// extractCompositeValue extracts a value from a comma-separated string at the specified index
+// Used for Energenie PDU style outlet status (e.g., "1,1,0,-1,-1,-1,-1,-1")
+func (s *PollerService) extractCompositeValue(value interface{}, mapping *domain.OIDMapping) interface{} {
+	strValue, ok := value.(string)
+	if !ok {
+		return value
+	}
+
+	separator := mapping.CompositeSeparator
+	if separator == "" {
+		separator = ","
+	}
+
+	parts := strings.Split(strValue, separator)
+	if mapping.CompositeIndex >= len(parts) {
+		log.Printf("[DEBUG] Composite index %d out of range for value %q (len=%d)", mapping.CompositeIndex, strValue, len(parts))
+		return nil
+	}
+
+	partValue := strings.TrimSpace(parts[mapping.CompositeIndex])
+
+	// Convert to integer if possible for enum mapping
+	var intVal int
+	if _, err := fmt.Sscanf(partValue, "%d", &intVal); err == nil {
+		// Apply enum mapping if available
+		if mapping.EnumValues != nil {
+			if name, ok := mapping.EnumValues[intVal]; ok {
+				return name
+			}
+		}
+		return intVal
+	}
+
+	return partValue
 }
 
 func (s *PollerService) updateState(deviceID string, values map[string]interface{}, online bool, errors []string) {

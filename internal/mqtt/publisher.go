@@ -256,10 +256,22 @@ func (p *Publisher) handleCommand(deviceID, entityID string, payload []byte) {
 
 	// Convert payload to SNMP value
 	payloadStr := strings.TrimSpace(string(payload))
-	snmpValue, err := p.convertPayloadToSNMPValue(payloadStr, mapping)
-	if err != nil {
-		log.Printf("Failed to convert payload: %v", err)
-		return
+	var snmpValue interface{}
+	var err error
+
+	// Handle composite_switch type (Energenie-style comma-separated outlet status)
+	if mapping.Type == domain.OIDTypeCompositeSwitch {
+		snmpValue, err = p.convertCompositePayloadToSNMPValue(device, payloadStr, mapping)
+		if err != nil {
+			log.Printf("Failed to convert composite payload: %v", err)
+			return
+		}
+	} else {
+		snmpValue, err = p.convertPayloadToSNMPValue(payloadStr, mapping)
+		if err != nil {
+			log.Printf("Failed to convert payload: %v", err)
+			return
+		}
 	}
 
 	// Send SNMP SET command
@@ -321,6 +333,89 @@ func (p *Publisher) convertPayloadToSNMPValue(payload string, mapping *domain.OI
 
 	// Default: return as string
 	return payload, nil
+}
+
+// convertCompositePayloadToSNMPValue handles composite_switch type - modifies specific index in comma-separated string
+func (p *Publisher) convertCompositePayloadToSNMPValue(device *domain.Device, payload string, mapping *domain.OIDMapping) (string, error) {
+	payloadUpper := strings.ToUpper(payload)
+
+	// Determine the value to set at the index
+	var newValue string
+	if mapping.EnumValues != nil {
+		for k, v := range mapping.EnumValues {
+			if strings.EqualFold(v, "On") && payloadUpper == "ON" {
+				newValue = fmt.Sprintf("%d", k)
+				break
+			}
+			if strings.EqualFold(v, "Off") && payloadUpper == "OFF" {
+				newValue = fmt.Sprintf("%d", k)
+				break
+			}
+		}
+	}
+	if newValue == "" {
+		// Default: ON=1, OFF=0 (Energenie style)
+		if payloadUpper == "ON" {
+			newValue = "1"
+		} else {
+			newValue = "0"
+		}
+	}
+
+	// Read current value from device
+	currentValue, err := p.readSNMPValue(device, mapping.OID)
+	if err != nil {
+		return "", fmt.Errorf("failed to read current value: %w", err)
+	}
+
+	currentStr, ok := currentValue.(string)
+	if !ok {
+		return "", fmt.Errorf("current value is not a string: %T", currentValue)
+	}
+
+	separator := mapping.CompositeSeparator
+	if separator == "" {
+		separator = ","
+	}
+
+	parts := strings.Split(currentStr, separator)
+	if mapping.CompositeIndex >= len(parts) {
+		return "", fmt.Errorf("composite index %d out of range (len=%d)", mapping.CompositeIndex, len(parts))
+	}
+
+	// Modify the specific index
+	parts[mapping.CompositeIndex] = newValue
+
+	return strings.Join(parts, separator), nil
+}
+
+// readSNMPValue reads a single OID value from the device
+func (p *Publisher) readSNMPValue(device *domain.Device, oid string) (interface{}, error) {
+	client := p.createSNMPClient(device)
+
+	if err := client.Connect(); err != nil {
+		return nil, fmt.Errorf("failed to connect: %w", err)
+	}
+	defer client.Conn.Close()
+
+	result, err := client.Get([]string{oid})
+	if err != nil {
+		return nil, fmt.Errorf("SNMP GET failed: %w", err)
+	}
+
+	if len(result.Variables) == 0 {
+		return nil, fmt.Errorf("no result for OID %s", oid)
+	}
+
+	variable := result.Variables[0]
+	switch variable.Type {
+	case gosnmp.OctetString:
+		return string(variable.Value.([]byte)), nil
+	case gosnmp.Integer:
+		return variable.Value, nil
+	default:
+		return variable.Value, nil
+	}
 }
 
 // sendSNMPSet sends an SNMP SET command to the device

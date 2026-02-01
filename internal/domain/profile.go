@@ -19,12 +19,13 @@ const (
 type OIDType string
 
 const (
-	OIDTypeString  OIDType = "string"
-	OIDTypeInteger OIDType = "integer"
-	OIDTypeGauge   OIDType = "gauge"
-	OIDTypeCounter OIDType = "counter"
-	OIDTypeBool    OIDType = "bool"
-	OIDTypeEnum    OIDType = "enum"
+	OIDTypeString          OIDType = "string"
+	OIDTypeInteger         OIDType = "integer"
+	OIDTypeGauge           OIDType = "gauge"
+	OIDTypeCounter         OIDType = "counter"
+	OIDTypeBool            OIDType = "bool"
+	OIDTypeEnum            OIDType = "enum"
+	OIDTypeCompositeSwitch OIDType = "composite_switch" // For Energenie-style comma-separated outlet status
 )
 
 // HAComponent represents Home Assistant component type
@@ -57,6 +58,10 @@ type OIDMapping struct {
 	PollGroup    string                 `json:"poll_group,omitempty" yaml:"poll_group,omitempty"` // "frequent" or "static"
 	Category     string                 `json:"category,omitempty" yaml:"category,omitempty"`     // HA entity category: config, diagnostic
 	Extra        map[string]interface{} `json:"extra,omitempty" yaml:"extra,omitempty"`
+
+	// Composite value handling (for Energenie-style comma-separated outlet status)
+	CompositeIndex     int    `json:"composite_index,omitempty" yaml:"composite_index,omitempty"`         // Index in comma-separated string (0-based)
+	CompositeSeparator string `json:"composite_separator,omitempty" yaml:"composite_separator,omitempty"` // Separator (default: ",")
 }
 
 // IndexedOIDMapping represents an OID mapping that should be polled with an index (e.g., outlets)
