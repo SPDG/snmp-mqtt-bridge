@@ -111,5 +111,31 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/spdg/snmp-mqtt-bridge/${{ matrix.arch }}:${{ steps.version.outputs.version }}
             ${{ env.REGISTRY }}/spdg/snmp-mqtt-bridge/${{ matrix.arch }}:latest
+          labels: |
+            org.opencontainers.image.source=https://github.com/SPDG/snmp-mqtt-bridge
+            org.opencontainers.image.description=SNMP-MQTT Bridge Home Assistant Addon (${{ matrix.arch }})
+            org.opencontainers.image.licenses=MIT
           build-args: |
             BUILD_ARCH=${{ matrix.arch }}
+
+  # Make packages public after build
+  publish:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name != 'pull_request'
+    permissions:
+      packages: write
+
+    steps:
+      - name: Make packages public
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for arch in amd64 aarch64 armv7 armhf i386; do
+            echo "Setting visibility for snmp-mqtt-bridge/${arch}..."
+            gh api \
+              --method PATCH \
+              -H "Accept: application/vnd.github+json" \
+              /orgs/SPDG/packages/container/snmp-mqtt-bridge%2F${arch}/visibility \
+              -f visibility='public' || echo "Failed for ${arch} (may need manual action)"
+          done
