@@ -7,8 +7,8 @@ import (
 	"snmp-mqtt-bridge/internal/config"
 	"snmp-mqtt-bridge/internal/domain"
 
+	"github.com/glebarez/sqlite" // Pure-Go SQLite driver (no CGO required)
 	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
