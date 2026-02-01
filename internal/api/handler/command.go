@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"strings"
 
 	"snmp-mqtt-bridge/internal/service"
 
@@ -12,13 +13,15 @@ import (
 type CommandHandler struct {
 	snmpService   *service.SNMPService
 	pollerService *service.PollerService
+	deviceService *service.DeviceService
 }
 
 // NewCommandHandler creates a new command handler
-func NewCommandHandler(snmpService *service.SNMPService, pollerService *service.PollerService) *CommandHandler {
+func NewCommandHandler(snmpService *service.SNMPService, pollerService *service.PollerService, deviceService *service.DeviceService) *CommandHandler {
 	return &CommandHandler{
 		snmpService:   snmpService,
 		pollerService: pollerService,
+		deviceService: deviceService,
 	}
 }
 
@@ -175,18 +178,43 @@ func (h *CommandHandler) SetOutletState(c *gin.Context) {
 		return
 	}
 
-	// PDU outlet control OID: .1.3.6.1.4.1.318.1.1.12.3.3.1.1.4.<outlet>
-	// Values: 1 = immediateOn, 2 = immediateOff, 3 = immediateReboot
-	controlOID := fmt.Sprintf(".1.3.6.1.4.1.318.1.1.12.3.3.1.1.4.%d", req.Outlet)
+	ctx := c.Request.Context()
 
-	var value int
-	if req.State == "on" {
-		value = 1 // immediateOn
-	} else {
-		value = 2 // immediateOff
+	// Look up device to get its profile
+	device, err := h.deviceService.GetByID(ctx, deviceID)
+	if err != nil {
+		RespondError(c, 404, "Device not found")
+		return
 	}
 
-	if err := h.snmpService.SetValue(c.Request.Context(), deviceID, controlOID, value); err != nil {
+	var controlOID string
+	var value interface{}
+
+	// Check if this is an Energenie PDU
+	if strings.HasPrefix(device.ProfileID, "energenie") {
+		// Energenie PDU: OID is .1.3.6.1.4.1.17420.1.2.9.<outlet>.13.0
+		// Value is comma-separated string: "1,-1,-1,-1,-1,-1,-1,-1" where first position is state
+		controlOID = fmt.Sprintf(".1.3.6.1.4.1.17420.1.2.9.%d.13.0", req.Outlet)
+
+		stateValue := "0"
+		if req.State == "on" {
+			stateValue = "1"
+		}
+		// Format: state,-1,-1,-1,-1,-1,-1,-1
+		value = fmt.Sprintf("%s,-1,-1,-1,-1,-1,-1,-1", stateValue)
+	} else {
+		// APC PDU: OID is .1.3.6.1.4.1.318.1.1.12.3.3.1.1.4.<outlet>
+		// Values: 1 = immediateOn, 2 = immediateOff, 3 = immediateReboot
+		controlOID = fmt.Sprintf(".1.3.6.1.4.1.318.1.1.12.3.3.1.1.4.%d", req.Outlet)
+
+		if req.State == "on" {
+			value = 1 // immediateOn
+		} else {
+			value = 2 // immediateOff
+		}
+	}
+
+	if err := h.snmpService.SetValue(ctx, deviceID, controlOID, value); err != nil {
 		RespondError(c, 500, err.Error())
 		return
 	}
@@ -218,10 +246,31 @@ func (h *CommandHandler) SetOutletName(c *gin.Context) {
 		return
 	}
 
-	// PDU outlet name OID (config table - writable): .1.3.6.1.4.1.318.1.1.12.3.4.1.1.2.<outlet>
-	nameOID := fmt.Sprintf(".1.3.6.1.4.1.318.1.1.12.3.4.1.1.2.%d", req.Outlet)
+	ctx := c.Request.Context()
 
-	if err := h.snmpService.SetValue(c.Request.Context(), deviceID, nameOID, req.Name); err != nil {
+	// Look up device to get its profile
+	device, err := h.deviceService.GetByID(ctx, deviceID)
+	if err != nil {
+		RespondError(c, 404, "Device not found")
+		return
+	}
+
+	var nameOID string
+	var value interface{}
+
+	// Check if this is an Energenie PDU
+	if strings.HasPrefix(device.ProfileID, "energenie") {
+		// Energenie PDU: OID is .1.3.6.1.4.1.17420.1.2.9.<outlet>.14.1.0
+		// Value is comma-separated string: "Name,0,0,0,0" where first position is name
+		nameOID = fmt.Sprintf(".1.3.6.1.4.1.17420.1.2.9.%d.14.1.0", req.Outlet)
+		value = fmt.Sprintf("%s,0,0,0,0", req.Name)
+	} else {
+		// APC PDU: OID is .1.3.6.1.4.1.318.1.1.12.3.4.1.1.2.<outlet>
+		nameOID = fmt.Sprintf(".1.3.6.1.4.1.318.1.1.12.3.4.1.1.2.%d", req.Outlet)
+		value = req.Name
+	}
+
+	if err := h.snmpService.SetValue(ctx, deviceID, nameOID, value); err != nil {
 		RespondError(c, 500, err.Error())
 		return
 	}

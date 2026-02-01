@@ -73,6 +73,35 @@ type IndexedOIDMapping struct {
 	NameFormat string `json:"name_format" yaml:"name_format"` // e.g., "Outlet %d"
 }
 
+// StringSlice is a slice of strings that can be stored in the database as JSON
+type StringSlice []string
+
+func (s StringSlice) Value() (driver.Value, error) {
+	if s == nil {
+		return "[]", nil
+	}
+	return json.Marshal(s)
+}
+
+func (s *StringSlice) Scan(value interface{}) error {
+	if value == nil {
+		*s = make(StringSlice, 0)
+		return nil
+	}
+
+	var data []byte
+	switch v := value.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		return errors.New("unsupported type for StringSlice")
+	}
+
+	return json.Unmarshal(data, s)
+}
+
 // OIDMappings is a slice of OID mappings that can be stored in the database
 type OIDMappings []OIDMapping
 
@@ -107,6 +136,7 @@ type Profile struct {
 	Model        string         `json:"model,omitempty" gorm:"type:text"`
 	Category     DeviceCategory `json:"category" gorm:"type:text"`
 	SysObjectID  string         `json:"sys_object_id,omitempty" gorm:"type:text"` // For auto-detection
+	SNMPVersions StringSlice    `json:"snmp_versions,omitempty" gorm:"type:text"` // Allowed SNMP versions (v1, v2c, v3)
 	OIDMappings  OIDMappings    `json:"oid_mappings" gorm:"type:text"`
 	IsBuiltin    bool           `json:"is_builtin" gorm:"default:false"`
 }
@@ -119,6 +149,7 @@ type ProfileYAML struct {
 	Model          string              `yaml:"model,omitempty"`
 	Category       DeviceCategory      `yaml:"category"`
 	SysObjectID    string              `yaml:"sys_object_id,omitempty"`
+	SNMPVersions   []string            `yaml:"snmp_versions,omitempty"` // Allowed SNMP versions (v1, v2c, v3)
 	OIDMappings    []OIDMapping        `yaml:"oid_mappings"`
 	IndexedOIDs    []IndexedOIDMapping `yaml:"indexed_oids,omitempty"`
 	PollGroups     map[string]int      `yaml:"poll_groups,omitempty"` // group name -> interval multiplier

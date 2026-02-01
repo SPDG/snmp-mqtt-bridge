@@ -76,14 +76,24 @@ func (d *Discovery) PublishDevice(device *domain.Device, profile *domain.Profile
 
 	availabilityTopic := fmt.Sprintf("%s/bridge/status", d.topicPrefix)
 
+	// Create device prefix for entity IDs using name + short ID for uniqueness
+	// e.g., "snmp_mqtt_pdu_001_a7a66242" ensures unique entity IDs even with duplicate names
+	shortID := device.ID
+	if len(shortID) > 8 {
+		shortID = shortID[:8]
+	}
+	devicePrefix := fmt.Sprintf("snmp_mqtt_%s_%s", sanitizeEntityID(device.Name), shortID)
+
 	for _, mapping := range profile.OIDMappings {
 		entityID := sanitizeEntityID(mapping.Name)
 		uniqueID := fmt.Sprintf("snmp_bridge_%s_%s", device.ID, entityID)
+		// Object ID includes device name + short ID for uniqueness and easier searching in HA
+		objectID := fmt.Sprintf("%s_%s", devicePrefix, entityID)
 
 		config := &DiscoveryConfig{
 			Name:              mapping.Name,
 			UniqueID:          uniqueID,
-			ObjectID:          entityID,
+			ObjectID:          objectID,
 			Device:            haDevice,
 			AvailabilityTopic: availabilityTopic,
 			PayloadAvailable:  "online",
@@ -184,6 +194,12 @@ func (d *Discovery) PublishDevice(device *domain.Device, profile *domain.Profile
 func (d *Discovery) UpdateSelectOptions(device *domain.Device, profile *domain.Profile, mapping domain.OIDMapping, options []string) error {
 	entityID := sanitizeEntityID(mapping.Name)
 	uniqueID := fmt.Sprintf("snmp_bridge_%s_%s", device.ID, entityID)
+	shortID := device.ID
+	if len(shortID) > 8 {
+		shortID = shortID[:8]
+	}
+	devicePrefix := fmt.Sprintf("snmp_mqtt_%s_%s", sanitizeEntityID(device.Name), shortID)
+	objectID := fmt.Sprintf("%s_%s", devicePrefix, entityID)
 
 	haDevice := &DiscoveryDevice{
 		Identifiers:  []string{fmt.Sprintf("snmp_bridge_%s", device.ID)},
@@ -196,7 +212,7 @@ func (d *Discovery) UpdateSelectOptions(device *domain.Device, profile *domain.P
 	config := &DiscoveryConfig{
 		Name:     mapping.Name,
 		UniqueID: uniqueID,
-		ObjectID: entityID,
+		ObjectID: objectID,
 		Device:   haDevice,
 		AvailabilityTopic:   fmt.Sprintf("%s/bridge/status", d.topicPrefix),
 		PayloadAvailable:    "online",

@@ -47,45 +47,48 @@ func (l *Labels) Scan(value interface{}) error {
 
 // Device represents an SNMP device
 type Device struct {
-	ID           string      `json:"id" gorm:"primaryKey;type:text"`
-	Name         string      `json:"name" gorm:"not null;type:text"`
-	IPAddress    string      `json:"ip_address" gorm:"not null;type:text"`
-	Port         int         `json:"port" gorm:"default:161"`
-	Community    string      `json:"community" gorm:"not null;type:text"`
-	SNMPVersion  SNMPVersion `json:"snmp_version" gorm:"not null;type:text"`
-	ProfileID    string      `json:"profile_id" gorm:"type:text"`
-	PollInterval int         `json:"poll_interval" gorm:"type:integer"` // seconds, 0 = use default
-	Enabled      bool        `json:"enabled" gorm:"default:true"`
-	Labels       Labels      `json:"labels" gorm:"type:text"`
-	CreatedAt    time.Time   `json:"created_at"`
-	UpdatedAt    time.Time   `json:"updated_at"`
-	LastSeen     *time.Time  `json:"last_seen,omitempty"`
+	ID             string      `json:"id" gorm:"primaryKey;type:text"`
+	Name           string      `json:"name" gorm:"not null;type:text"`
+	IPAddress      string      `json:"ip_address" gorm:"not null;type:text"`
+	Port           int         `json:"port" gorm:"default:161"`
+	Community      string      `json:"community" gorm:"not null;type:text"`
+	WriteCommunity string      `json:"write_community" gorm:"type:text"` // Optional community for SNMP SET (e.g., 'private' for Energenie)
+	SNMPVersion    SNMPVersion `json:"snmp_version" gorm:"not null;type:text"`
+	ProfileID      string      `json:"profile_id" gorm:"type:text"`
+	PollInterval   int         `json:"poll_interval" gorm:"type:integer"` // seconds, 0 = use default
+	Enabled        bool        `json:"enabled" gorm:"default:true"`
+	Labels         Labels      `json:"labels" gorm:"type:text"`
+	CreatedAt      time.Time   `json:"created_at"`
+	UpdatedAt      time.Time   `json:"updated_at"`
+	LastSeen       *time.Time  `json:"last_seen,omitempty"`
 }
 
 // DeviceCreateRequest is used for creating a new device
 type DeviceCreateRequest struct {
-	Name         string            `json:"name" binding:"required"`
-	IPAddress    string            `json:"ip_address" binding:"required,ip"`
-	Port         int               `json:"port"`
-	Community    string            `json:"community" binding:"required"`
-	SNMPVersion  SNMPVersion       `json:"snmp_version" binding:"required,oneof=v1 v2c v3"`
-	ProfileID    string            `json:"profile_id"`
-	PollInterval int               `json:"poll_interval"`
-	Enabled      bool              `json:"enabled"`
-	Labels       map[string]string `json:"labels"`
+	Name           string            `json:"name" binding:"required"`
+	IPAddress      string            `json:"ip_address" binding:"required,ip"`
+	Port           int               `json:"port"`
+	Community      string            `json:"community" binding:"required"`
+	WriteCommunity string            `json:"write_community"` // Optional community for SNMP SET
+	SNMPVersion    SNMPVersion       `json:"snmp_version" binding:"required,oneof=v1 v2c v3"`
+	ProfileID      string            `json:"profile_id"`
+	PollInterval   int               `json:"poll_interval"`
+	Enabled        bool              `json:"enabled"`
+	Labels         map[string]string `json:"labels"`
 }
 
 // DeviceUpdateRequest is used for updating an existing device
 type DeviceUpdateRequest struct {
-	Name         *string           `json:"name,omitempty"`
-	IPAddress    *string           `json:"ip_address,omitempty" binding:"omitempty,ip"`
-	Port         *int              `json:"port,omitempty"`
-	Community    *string           `json:"community,omitempty"`
-	SNMPVersion  *SNMPVersion      `json:"snmp_version,omitempty" binding:"omitempty,oneof=v1 v2c v3"`
-	ProfileID    *string           `json:"profile_id,omitempty"`
-	PollInterval *int              `json:"poll_interval,omitempty"`
-	Enabled      *bool             `json:"enabled,omitempty"`
-	Labels       map[string]string `json:"labels,omitempty"`
+	Name           *string           `json:"name,omitempty"`
+	IPAddress      *string           `json:"ip_address,omitempty" binding:"omitempty,ip"`
+	Port           *int              `json:"port,omitempty"`
+	Community      *string           `json:"community,omitempty"`
+	WriteCommunity *string           `json:"write_community,omitempty"` // Optional community for SNMP SET
+	SNMPVersion    *SNMPVersion      `json:"snmp_version,omitempty" binding:"omitempty,oneof=v1 v2c v3"`
+	ProfileID      *string           `json:"profile_id,omitempty"`
+	PollInterval   *int              `json:"poll_interval,omitempty"`
+	Enabled        *bool             `json:"enabled,omitempty"`
+	Labels         map[string]string `json:"labels,omitempty"`
 }
 
 // DeviceState represents the current state of a device

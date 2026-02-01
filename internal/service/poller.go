@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -44,13 +45,14 @@ type PollerService struct {
 }
 
 type devicePoller struct {
-	device    *domain.Device
-	profile   *domain.Profile
-	client    *gosnmp.GoSNMP
-	interval  time.Duration
-	stopCh    chan struct{}
-	triggerCh chan struct{}
-	pollCount int
+	device      *domain.Device
+	profile     *domain.Profile
+	client      *gosnmp.GoSNMP
+	interval    time.Duration
+	stopCh      chan struct{}
+	triggerCh   chan struct{}
+	pollCount   int
+	missingOIDs map[string]bool // OIDs that returned NoSuchInstance - skip polling these
 }
 
 // NewPollerService creates a new poller service
@@ -141,11 +143,12 @@ func (s *PollerService) AddDevice(device *domain.Device) {
 	}
 
 	dp := &devicePoller{
-		device:    device,
-		profile:   profile,
-		interval:  interval,
-		stopCh:    make(chan struct{}),
-		triggerCh: make(chan struct{}, 1),
+		device:      device,
+		profile:     profile,
+		interval:    interval,
+		stopCh:      make(chan struct{}),
+		triggerCh:   make(chan struct{}, 1),
+		missingOIDs: make(map[string]bool),
 	}
 
 	s.devices[device.ID] = dp
@@ -294,10 +297,11 @@ func (s *PollerService) doPoll(dp *devicePoller) {
 	}
 
 	// Determine batch size based on SNMP version
-	// SNMPv1 has more limited response sizes
+	// SNMPv1 devices often have trouble with batch requests (packet sanity errors)
+	// so we use individual queries for maximum compatibility
 	batchSize := 10
 	if dp.client.Version == gosnmp.Version1 {
-		batchSize = 5
+		batchSize = 1 // Individual queries for SNMP v1 - more reliable
 	}
 
 	// Poll in batches
@@ -360,12 +364,19 @@ func (s *PollerService) doPoll(dp *devicePoller) {
 		}
 
 		for _, variable := range result.Variables {
-			value := s.parseValue(variable)
 			normalizedOID := normalizeOID(variable.Name)
 
-			// Log skipped values for debugging
+			// Check for missing OIDs and track them to skip in future polls
+			if variable.Type == gosnmp.NoSuchInstance || variable.Type == gosnmp.NoSuchObject {
+				if !dp.missingOIDs[normalizedOID] {
+					log.Printf("[INFO] OID %s not available on device %s - will skip in future polls", normalizedOID, dp.device.Name)
+					dp.missingOIDs[normalizedOID] = true
+				}
+				continue
+			}
+
+			value := s.parseValue(variable)
 			if value == nil {
-				log.Printf("[DEBUG] Skipping OID %s (type=%v) for device %s", variable.Name, variable.Type, dp.device.ID)
 				continue
 			}
 
@@ -380,12 +391,50 @@ func (s *PollerService) doPoll(dp *devicePoller) {
 		}
 	}
 
+	// Calculate derived values (e.g., Active Power = Voltage × Current)
+	s.calculateDerivedValues(values)
+
 	online := len(errors) == 0
 	s.updateState(dp.device.ID, values, online, errors)
 
 	// Update last seen
 	if online {
 		_ = s.deviceRepo.UpdateLastSeen(context.Background(), dp.device.ID)
+	}
+}
+
+// calculateDerivedValues computes values that can be derived from other measurements
+func (s *PollerService) calculateDerivedValues(values map[string]interface{}) {
+	// Calculate Active Power if it's 0 or missing (P = V × I)
+	activePower := toFloat64(values["Active Power"])
+	if activePower == 0 {
+		voltage := toFloat64(values["Voltage"])
+		current := toFloat64(values["Total Current"])
+		if voltage > 0 && current > 0 {
+			// Round to 1 decimal place
+			values["Active Power"] = math.Round(voltage*current*10) / 10
+		}
+	}
+}
+
+// toFloat64 converts various types to float64
+func toFloat64(v interface{}) float64 {
+	if v == nil {
+		return 0
+	}
+	switch val := v.(type) {
+	case float64:
+		return val
+	case int:
+		return float64(val)
+	case int64:
+		return float64(val)
+	case string:
+		var f float64
+		fmt.Sscanf(val, "%f", &f)
+		return f
+	default:
+		return 0
 	}
 }
 
@@ -413,6 +462,11 @@ func (s *PollerService) getOIDsToPoll(dp *devicePoller) []string {
 		}
 
 		if dp.pollCount%interval == 0 {
+			// Skip OIDs that previously returned NoSuchInstance/NoSuchObject
+			normalizedOID := normalizeOID(mapping.OID)
+			if dp.missingOIDs[normalizedOID] {
+				continue
+			}
 			oidSet[mapping.OID] = true
 		}
 	}
@@ -434,11 +488,8 @@ func (s *PollerService) parseValue(variable gosnmp.SnmpPDU) interface{} {
 		return variable.Value
 	case gosnmp.ObjectIdentifier:
 		return variable.Value.(string)
-	case gosnmp.NoSuchObject:
-		log.Printf("[DEBUG] NoSuchObject for OID %s", variable.Name)
-		return nil
-	case gosnmp.NoSuchInstance:
-		log.Printf("[DEBUG] NoSuchInstance for OID %s", variable.Name)
+	case gosnmp.NoSuchObject, gosnmp.NoSuchInstance:
+		// OID doesn't exist on this device - normal for optional features
 		return nil
 	case gosnmp.Null:
 		return nil
@@ -455,21 +506,39 @@ func (s *PollerService) transformValue(value interface{}, mapping *domain.OIDMap
 
 	// Apply scale
 	if mapping.Scale != 0 {
-		var scaled float64
+		var numericValue float64
+		var hasNumeric bool
+
 		switch v := value.(type) {
 		case int:
-			scaled = float64(v) * mapping.Scale
+			numericValue = float64(v)
+			hasNumeric = true
 		case int64:
-			scaled = float64(v) * mapping.Scale
+			numericValue = float64(v)
+			hasNumeric = true
 		case uint:
-			scaled = float64(v) * mapping.Scale
+			numericValue = float64(v)
+			hasNumeric = true
 		case uint64:
-			scaled = float64(v) * mapping.Scale
-		default:
-			scaled = 0
+			numericValue = float64(v)
+			hasNumeric = true
+		case float64:
+			numericValue = v
+			hasNumeric = true
+		case string:
+			// Try to parse string as number (some devices return numbers as strings)
+			if parsed, err := strconv.ParseFloat(v, 64); err == nil {
+				numericValue = parsed
+				hasNumeric = true
+			}
 		}
-		if scaled != 0 {
-			// Round to 2 decimal places to avoid floating point precision issues
+
+		if hasNumeric {
+			scaled := numericValue * mapping.Scale
+			// Round to appropriate decimal places based on scale
+			if mapping.Scale < 0.01 {
+				return math.Round(scaled*1000) / 1000
+			}
 			return math.Round(scaled*100) / 100
 		}
 	}
