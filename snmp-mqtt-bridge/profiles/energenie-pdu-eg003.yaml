@@ -1,0 +1,403 @@
+# Energenie EG-PDU-003 Smart PDU Profile
+# Note: SNMP v1 only, 8 outlets
+# Each outlet is a separate "PDU" entry in the SNMP tree (pdu01-pdu08)
+# Status format: "1,-1,-1,-1,-1,-1,-1,-1" where first value is state (1=ON, 0=OFF)
+# Read with 'public' community, write with 'private' community
+
+id: energenie-pdu-eg003
+name: Energenie Smart PDU
+manufacturer: Energenie
+model: EG-PDU-003
+category: pdu
+sys_object_id: ".1.3.6.1.4.1.17420"
+snmp_versions:
+  - v1
+
+poll_groups:
+  frequent: 1    # Every poll interval
+  static: 10     # Every 10th poll
+
+oid_mappings:
+  # System Information
+  - oid: ".1.3.6.1.2.1.1.1.0"
+    name: "System Description"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.2.1.1.5.0"
+    name: "System Name"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  # Device Info
+  - oid: ".1.3.6.1.4.1.17420.1.2.4.0"
+    name: "Firmware Version"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.5.0"
+    name: "Device Info"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  # PDU Identity (from pdu01 entry)
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.1.18.0"
+    name: "Model Name"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.1.19.0"
+    name: "Model Number"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  # Power Measurements
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.1.17.0"
+    name: "Voltage"
+    type: gauge
+    unit: "V"
+    ha_component: sensor
+    device_class: voltage
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.3.4.0"
+    name: "Active Power"
+    type: gauge
+    unit: "W"
+    scale: 0.01
+    ha_component: sensor
+    device_class: power
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.3.6.0"
+    name: "Total Energy"
+    type: gauge
+    unit: "kWh"
+    scale: 0.001
+    ha_component: sensor
+    device_class: energy
+    state_class: total_increasing
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.3.7.0"
+    name: "Total Current"
+    type: gauge
+    unit: "A"
+    scale: 0.01
+    ha_component: sensor
+    device_class: current
+    state_class: measurement
+    poll_group: frequent
+
+  # Environmental sensors
+  - oid: ".1.3.6.1.4.1.17420.1.2.7.0"
+    name: "Temperature"
+    type: gauge
+    unit: "C"
+    ha_component: sensor
+    device_class: temperature
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.8.0"
+    name: "Humidity"
+    type: gauge
+    unit: "%"
+    ha_component: sensor
+    device_class: humidity
+    state_class: measurement
+    poll_group: frequent
+
+  # ============================================================
+  # OUTLET 1 (pdu01 - .1.3.6.1.4.1.17420.1.2.9.1)
+  # ============================================================
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.1.14.1.0"
+    name: "Outlet 1 Name"
+    type: composite_switch
+    composite_index: 0
+    composite_separator: ","
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.1.11.0"
+    name: "Outlet 1 Current"
+    type: gauge
+    unit: "A"
+    scale: 0.1
+    ha_component: sensor
+    device_class: current
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.1.13.0"
+    name: "Outlet 1 State"
+    type: composite_switch
+    composite_index: 0
+    composite_separator: ","
+    ha_component: switch
+    writable: true
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "On"
+      0: "Off"
+    poll_group: frequent
+
+  # ============================================================
+  # OUTLET 2 (pdu02 - .1.3.6.1.4.1.17420.1.2.9.2)
+  # ============================================================
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.2.14.1.0"
+    name: "Outlet 2 Name"
+    type: composite_switch
+    composite_index: 0
+    composite_separator: ","
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.2.11.0"
+    name: "Outlet 2 Current"
+    type: gauge
+    unit: "A"
+    scale: 0.1
+    ha_component: sensor
+    device_class: current
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.2.13.0"
+    name: "Outlet 2 State"
+    type: composite_switch
+    composite_index: 0
+    composite_separator: ","
+    ha_component: switch
+    writable: true
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "On"
+      0: "Off"
+    poll_group: frequent
+
+  # ============================================================
+  # OUTLET 3 (pdu03 - .1.3.6.1.4.1.17420.1.2.9.3)
+  # ============================================================
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.3.14.1.0"
+    name: "Outlet 3 Name"
+    type: composite_switch
+    composite_index: 0
+    composite_separator: ","
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.3.11.0"
+    name: "Outlet 3 Current"
+    type: gauge
+    unit: "A"
+    scale: 0.1
+    ha_component: sensor
+    device_class: current
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.3.13.0"
+    name: "Outlet 3 State"
+    type: composite_switch
+    composite_index: 0
+    composite_separator: ","
+    ha_component: switch
+    writable: true
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "On"
+      0: "Off"
+    poll_group: frequent
+
+  # ============================================================
+  # OUTLET 4 (pdu04 - .1.3.6.1.4.1.17420.1.2.9.4)
+  # ============================================================
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.4.14.1.0"
+    name: "Outlet 4 Name"
+    type: composite_switch
+    composite_index: 0
+    composite_separator: ","
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.4.11.0"
+    name: "Outlet 4 Current"
+    type: gauge
+    unit: "A"
+    scale: 0.1
+    ha_component: sensor
+    device_class: current
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.4.13.0"
+    name: "Outlet 4 State"
+    type: composite_switch
+    composite_index: 0
+    composite_separator: ","
+    ha_component: switch
+    writable: true
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "On"
+      0: "Off"
+    poll_group: frequent
+
+  # ============================================================
+  # OUTLET 5 (pdu05 - .1.3.6.1.4.1.17420.1.2.9.5)
+  # ============================================================
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.5.14.1.0"
+    name: "Outlet 5 Name"
+    type: composite_switch
+    composite_index: 0
+    composite_separator: ","
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.5.11.0"
+    name: "Outlet 5 Current"
+    type: gauge
+    unit: "A"
+    scale: 0.1
+    ha_component: sensor
+    device_class: current
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.5.13.0"
+    name: "Outlet 5 State"
+    type: composite_switch
+    composite_index: 0
+    composite_separator: ","
+    ha_component: switch
+    writable: true
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "On"
+      0: "Off"
+    poll_group: frequent
+
+  # ============================================================
+  # OUTLET 6 (pdu06 - .1.3.6.1.4.1.17420.1.2.9.6)
+  # ============================================================
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.6.14.1.0"
+    name: "Outlet 6 Name"
+    type: composite_switch
+    composite_index: 0
+    composite_separator: ","
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.6.11.0"
+    name: "Outlet 6 Current"
+    type: gauge
+    unit: "A"
+    scale: 0.1
+    ha_component: sensor
+    device_class: current
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.6.13.0"
+    name: "Outlet 6 State"
+    type: composite_switch
+    composite_index: 0
+    composite_separator: ","
+    ha_component: switch
+    writable: true
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "On"
+      0: "Off"
+    poll_group: frequent
+
+  # ============================================================
+  # OUTLET 7 (pdu07 - .1.3.6.1.4.1.17420.1.2.9.7)
+  # ============================================================
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.7.14.1.0"
+    name: "Outlet 7 Name"
+    type: composite_switch
+    composite_index: 0
+    composite_separator: ","
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.7.11.0"
+    name: "Outlet 7 Current"
+    type: gauge
+    unit: "A"
+    scale: 0.1
+    ha_component: sensor
+    device_class: current
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.7.13.0"
+    name: "Outlet 7 State"
+    type: composite_switch
+    composite_index: 0
+    composite_separator: ","
+    ha_component: switch
+    writable: true
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "On"
+      0: "Off"
+    poll_group: frequent
+
+  # ============================================================
+  # OUTLET 8 (pdu08 - .1.3.6.1.4.1.17420.1.2.9.8)
+  # ============================================================
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.8.14.1.0"
+    name: "Outlet 8 Name"
+    type: composite_switch
+    composite_index: 0
+    composite_separator: ","
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.8.11.0"
+    name: "Outlet 8 Current"
+    type: gauge
+    unit: "A"
+    scale: 0.1
+    ha_component: sensor
+    device_class: current
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.8.13.0"
+    name: "Outlet 8 State"
+    type: composite_switch
+    composite_index: 0
+    composite_separator: ","
+    ha_component: switch
+    writable: true
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "On"
+      0: "Off"
+    poll_group: frequent
