@@ -1,6 +1,8 @@
 # Binaries (root level only, not cmd/snmp-bridge/)
 /snmp-bridge
 /snmp-bridge.exe
+/snmp-mqtt-bridge
+/snmp-mqtt-bridge.exe
 *.exe
 *.exe~
 *.dll
@@ -51,7 +53,7 @@ ehthumbs.db
 /data/
 
 # Local configuration (keep config.example.yaml in repo)
-config.yaml
+/config.yaml
 config.local.yaml
 .env
 .env.local

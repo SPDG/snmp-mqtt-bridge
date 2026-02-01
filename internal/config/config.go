@@ -16,8 +16,9 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Host string `mapstructure:"host"`
-	Port int    `mapstructure:"port"`
+	Host        string `mapstructure:"host"`
+	Port        int    `mapstructure:"port"`
+	IngressPath string `mapstructure:"ingress_path"` // Base path for HA Ingress (e.g., /api/hassio_ingress/xxx)
 }
 
 type DatabaseConfig struct {

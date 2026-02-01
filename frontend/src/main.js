@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
 import './style.css'
+import { getBasePath } from './api'
 
 import Dashboard from './views/Dashboard.vue'
 import Devices from './views/Devices.vue'
@@ -20,8 +21,11 @@ const routes = [
   { path: '/settings', name: 'settings', component: Settings },
 ]
 
+// Get base path for HA Ingress support
+const basePath = getBasePath()
+
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(basePath),
   routes,
 })
 

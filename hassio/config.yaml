@@ -1,0 +1,60 @@
+name: "SNMP-MQTT Bridge"
+description: "Bridge SNMP devices (UPS, ATS, PDU) to Home Assistant via MQTT with auto-discovery"
+version: "0.0.2"
+slug: snmp-mqtt-bridge
+url: "https://github.com/SPDG/snmp-mqtt-bridge"
+arch:
+  - amd64
+  - aarch64
+  - armv7
+  - armhf
+  - i386
+init: false
+homeassistant_api: false
+hassio_api: true
+
+# Ingress configuration
+ingress: true
+ingress_port: 8099
+ingress_stream: true
+panel_icon: "mdi:lan-connect"
+panel_title: "SNMP Bridge"
+
+# Network ports
+ports:
+  162/udp: 162
+ports_description:
+  162/udp: "SNMP Trap receiver port"
+
+# File mappings
+map:
+  - config:rw
+
+# Configuration options
+options:
+  mqtt_host: ""
+  mqtt_port: 1883
+  mqtt_username: ""
+  mqtt_password: ""
+  mqtt_discovery_prefix: "homeassistant"
+  mqtt_topic_prefix: "snmp-bridge"
+  poll_interval: 30
+  trap_port: 10162
+  log_level: "info"
+
+schema:
+  mqtt_host: str?
+  mqtt_port: port?
+  mqtt_username: str?
+  mqtt_password: password?
+  mqtt_discovery_prefix: str?
+  mqtt_topic_prefix: str?
+  poll_interval: int(5,3600)?
+  trap_port: port?
+  log_level: list(debug|info|warn|error)?
+
+# Request MQTT service from Supervisor
+services:
+  - mqtt:want
+
+startup: services
