@@ -23,6 +23,7 @@ A lightweight Go application that bridges SNMP-enabled power devices (UPS, ATS, 
 |--------------|-------|------|
 | APC | AP4421 | Automatic Transfer Switch |
 | APC | AP7921 | Switched Rack PDU |
+| Energenie | EG-PDU-003 | Smart PDU (4 outlets, SNMP v1) |
 
 Additional profiles can be added via YAML configuration files.
 

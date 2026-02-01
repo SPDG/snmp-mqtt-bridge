@@ -21,7 +21,9 @@ A Go application that bridges SNMP devices (UPS, ATS, PDU) to Home Assistant via
 - [x] Custom labels for outlets/ports
 - [x] Profile: APC ATS (AP4421)
 - [x] Profile: APC Switched Rack PDU (AP7921)
+- [x] Profile: Energenie Smart PDU (EG-PDU-003)
 - [x] SNMP v1/v2c/v3 support (v3 with noAuthNoPriv)
+- [x] Composite switch support for Energenie-style comma-separated outlet status
 
 #### Phase 3: SNMP Polling Engine
 - [x] Worker poller with configurable interval

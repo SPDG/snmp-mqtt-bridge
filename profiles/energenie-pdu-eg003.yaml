@@ -1,0 +1,268 @@
+# Energenie EG-PDU-003 Smart PDU Profile
+# Note: SNMP v1 only, 4 controllable outlets
+# Outlet control uses a single OID with comma-separated string format
+# e.g., "1,1,0,-1,-1,-1,-1,-1" where:
+#   1 = ON, 0 = OFF, -1 = Not available, -2 = Fault/breaker triggered
+
+id: energenie-pdu-eg003
+name: Energenie Smart PDU
+manufacturer: Energenie
+model: EG-PDU-003
+category: pdu
+sys_object_id: ".1.3.6.1.4.1.17420"
+
+poll_groups:
+  frequent: 1    # Every poll interval
+  static: 10     # Every 10th poll
+
+oid_mappings:
+  # System Information
+  - oid: ".1.3.6.1.2.1.1.1.0"
+    name: "System Description"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: static
+
+  - oid: ".1.3.6.1.2.1.1.5.0"
+    name: "System Name"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: static
+
+  # PDU Identity
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.1.18.0"
+    name: "Model Name"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: static
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.1.19.0"
+    name: "Model Number"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: static
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.1.20.0"
+    name: "PDU Name"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: static
+
+  # Power Measurements (kWh module - higher precision)
+  - oid: ".1.3.6.1.4.1.17420.1.3.1.0"
+    name: "Voltage"
+    type: gauge
+    unit: "V"
+    scale: 0.01
+    ha_component: sensor
+    device_class: voltage
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.3.2.0"
+    name: "Frequency"
+    type: gauge
+    unit: "Hz"
+    scale: 0.01
+    ha_component: sensor
+    device_class: frequency
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.3.3.0"
+    name: "Power Factor"
+    type: gauge
+    unit: ""
+    scale: 0.01
+    ha_component: sensor
+    device_class: power_factor
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.3.4.0"
+    name: "Active Power"
+    type: gauge
+    unit: "W"
+    scale: 0.01
+    ha_component: sensor
+    device_class: power
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.3.5.0"
+    name: "Apparent Power"
+    type: gauge
+    unit: "VA"
+    scale: 0.01
+    ha_component: sensor
+    device_class: apparent_power
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.3.6.0"
+    name: "Total Energy"
+    type: gauge
+    unit: "kWh"
+    scale: 0.001
+    ha_component: sensor
+    device_class: energy
+    state_class: total_increasing
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.3.7.0"
+    name: "Total Current"
+    type: gauge
+    unit: "A"
+    scale: 0.01
+    ha_component: sensor
+    device_class: current
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.3.8.0"
+    name: "Accumulated Energy"
+    type: gauge
+    unit: "kWh"
+    scale: 0.001
+    ha_component: sensor
+    device_class: energy
+    state_class: total_increasing
+    poll_group: frequent
+
+  # PDU-level current (from pdu01Entry)
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.1.11.0"
+    name: "PDU Current"
+    type: gauge
+    unit: "A"
+    scale: 0.1
+    ha_component: sensor
+    device_class: current
+    state_class: measurement
+    poll_group: frequent
+
+  # PDU-level voltage (less precise than kWh module)
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.1.17.0"
+    name: "PDU Voltage"
+    type: gauge
+    unit: "V"
+    ha_component: sensor
+    device_class: voltage
+    state_class: measurement
+    poll_group: frequent
+
+  # Environmental sensors
+  - oid: ".1.3.6.1.4.1.17420.1.2.7.0"
+    name: "Temperature"
+    type: gauge
+    unit: "C"
+    ha_component: sensor
+    device_class: temperature
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.8.0"
+    name: "Humidity"
+    type: gauge
+    unit: "%"
+    ha_component: sensor
+    device_class: humidity
+    state_class: measurement
+    poll_group: frequent
+
+  # Thresholds
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.1.15.0"
+    name: "Warning Threshold"
+    type: gauge
+    unit: "A"
+    scale: 0.1
+    ha_component: sensor
+    device_class: current
+    category: diagnostic
+    poll_group: static
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.1.16.0"
+    name: "Critical Threshold"
+    type: gauge
+    unit: "A"
+    scale: 0.1
+    ha_component: sensor
+    device_class: current
+    category: diagnostic
+    poll_group: static
+
+  # Outlet Status (comma-separated string: "1,1,0,-1,-1,-1,-1,-1")
+  # This is a composite value - individual outlet parsing requires special handling
+  # Values: 1=ON, 0=OFF, -1=Not Available, -2=Fault
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.1.13.0"
+    name: "Outlet Status Raw"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  # Per-outlet currents (comma-separated string)
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.1.12.0"
+    name: "Outlet Currents Raw"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  # Individual outlet switches - requires special composite string handling
+  # These use the same OID but with index-based parsing/writing
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.1.13.0"
+    name: "Outlet 1 State"
+    type: composite_switch
+    composite_index: 0
+    composite_separator: ","
+    ha_component: switch
+    writable: true
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "On"
+      0: "Off"
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.1.13.0"
+    name: "Outlet 2 State"
+    type: composite_switch
+    composite_index: 1
+    composite_separator: ","
+    ha_component: switch
+    writable: true
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "On"
+      0: "Off"
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.1.13.0"
+    name: "Outlet 3 State"
+    type: composite_switch
+    composite_index: 2
+    composite_separator: ","
+    ha_component: switch
+    writable: true
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "On"
+      0: "Off"
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.17420.1.2.9.1.13.0"
+    name: "Outlet 4 State"
+    type: composite_switch
+    composite_index: 3
+    composite_separator: ","
+    ha_component: switch
+    writable: true
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "On"
+      0: "Off"
+    poll_group: frequent
