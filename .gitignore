@@ -1,0 +1,72 @@
+# Binaries (root level only, not cmd/snmp-bridge/)
+/snmp-bridge
+/snmp-bridge.exe
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Build output
+/dist/
+/build/
+
+# Test binary
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.txt
+coverage.html
+
+# Dependency directories
+vendor/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Embedded frontend (generated from build)
+internal/api/static/dist/
+
+# IDE and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Database
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Data directory
+/data/
+
+# Local configuration (keep config.example.yaml in repo)
+config.yaml
+config.local.yaml
+.env
+.env.local
+.env.*.local
+
+# Claude Code local settings
+.claude/
+
+# Logs
+*.log
+logs/
+
+# Air (hot reload)
+tmp/
+temp/
+
+# Test artifacts
+__debug_bin*

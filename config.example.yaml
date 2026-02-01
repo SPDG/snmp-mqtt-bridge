@@ -1,0 +1,38 @@
+# SNMP-MQTT Bridge Configuration
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+
+database:
+  driver: "sqlite"  # sqlite or postgres
+  dsn: "/data/snmp-bridge.db"
+  # For PostgreSQL:
+  # driver: "postgres"
+  # host: "localhost"
+  # port: 5432
+  # user: "snmp_bridge"
+  # password: "secret"
+  # dbname: "snmp_bridge"
+
+mqtt:
+  broker: "localhost"
+  port: 1883
+  username: ""
+  password: ""
+  client_id: "snmp-mqtt-bridge"
+  topic_prefix: "snmp-bridge"
+  discovery: true
+  discovery_prefix: "homeassistant"
+
+snmp:
+  default_community: "public"
+  default_version: "v2c"
+  default_timeout: "5s"
+  default_retries: 3
+  trap_port: 162
+  poll_interval: "30s"
+
+logging:
+  level: "info"  # debug, info, warn, error
+  format: "json"  # json or text

@@ -1,0 +1,380 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Buttons */
+.btn {
+  @apply px-4 py-2 rounded-lg font-medium transition-colors;
+}
+
+.btn-primary {
+  @apply bg-blue-600 text-white hover:bg-blue-700;
+  @apply dark:bg-dracula-purple dark:hover:bg-purple-500;
+}
+
+.btn-secondary {
+  @apply bg-gray-200 text-gray-800 hover:bg-gray-300;
+  @apply dark:bg-dracula-comment/40 dark:text-dracula-fg dark:hover:bg-dracula-comment/60;
+}
+
+.btn-danger {
+  @apply bg-red-600 text-white hover:bg-red-700;
+  @apply dark:bg-dracula-red dark:hover:bg-red-400;
+}
+
+/* Cards */
+.card {
+  @apply bg-white rounded-lg shadow-md p-6;
+  @apply dark:bg-dracula-current dark:shadow-lg dark:shadow-black/30;
+}
+
+/* Inputs */
+.input {
+  @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  @apply dark:bg-dracula-bg dark:border-dracula-comment/60 dark:text-dracula-fg dark:focus:ring-dracula-purple dark:placeholder-dracula-comment;
+}
+
+/* Labels */
+.label {
+  @apply block text-sm font-medium text-gray-700 mb-1;
+  @apply dark:text-dracula-cyan;
+}
+
+/* Status badges */
+.status-online {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800;
+  @apply dark:bg-dracula-green/30 dark:text-dracula-green;
+}
+
+.status-offline {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800;
+  @apply dark:bg-dracula-red/30 dark:text-dracula-red;
+}
+
+/* Dark mode base text */
+.dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+  @apply text-dracula-fg;
+}
+
+.dark p {
+  @apply text-dracula-fg;
+}
+
+.dark span {
+  color: inherit;
+}
+
+/* Definition lists - Device Information */
+.dark dt {
+  @apply text-dracula-pink;
+}
+
+.dark dd {
+  @apply text-dracula-fg;
+}
+
+.dark dl {
+  @apply text-dracula-fg;
+}
+
+/* Table styles for dark mode */
+.dark table {
+  @apply border-dracula-comment/50;
+}
+
+.dark th {
+  @apply bg-dracula-selection text-dracula-cyan border-dracula-comment/50;
+}
+
+.dark td {
+  @apply border-dracula-comment/50 text-dracula-fg;
+}
+
+.dark tbody tr:hover {
+  @apply bg-dracula-selection/50;
+}
+
+/* Modal backdrop */
+.dark .bg-black.bg-opacity-50 {
+  @apply bg-opacity-80;
+}
+
+/* Modal content */
+.dark .bg-white.rounded-lg.shadow-xl {
+  @apply bg-dracula-current;
+}
+
+/* Select dropdown */
+select.input {
+  @apply dark:bg-dracula-bg;
+}
+
+select.input option {
+  @apply dark:bg-dracula-bg dark:text-dracula-fg;
+}
+
+/* Checkbox */
+input[type="checkbox"] {
+  @apply dark:bg-dracula-bg dark:border-dracula-comment dark:checked:bg-dracula-purple;
+}
+
+/* Text colors for dark mode - improved contrast */
+.dark .text-gray-900 {
+  @apply text-dracula-fg;
+}
+
+.dark .text-gray-800 {
+  @apply text-dracula-fg;
+}
+
+.dark .text-gray-700 {
+  @apply text-dracula-fg;
+}
+
+.dark .text-gray-600 {
+  @apply text-dracula-fg/90;
+}
+
+.dark .text-gray-500 {
+  @apply text-dracula-pink;
+}
+
+.dark .text-gray-400 {
+  @apply text-dracula-comment;
+}
+
+/* Background colors for dark mode */
+.dark .bg-gray-50 {
+  @apply bg-dracula-bg/80;
+}
+
+.dark .bg-gray-100 {
+  @apply bg-dracula-bg;
+}
+
+.dark .bg-white {
+  @apply bg-dracula-current;
+}
+
+/* Border colors for dark mode */
+.dark .border-gray-200 {
+  @apply border-dracula-comment/40;
+}
+
+.dark .border-gray-300 {
+  @apply border-dracula-comment/60;
+}
+
+.dark .border-t {
+  @apply border-dracula-comment/40;
+}
+
+.dark .border-b {
+  @apply border-dracula-comment/40;
+}
+
+/* Green colors */
+.dark .border-green-500 {
+  @apply border-dracula-green;
+}
+
+.dark .bg-green-50 {
+  @apply bg-dracula-green/10;
+}
+
+.dark .bg-green-100 {
+  @apply bg-dracula-green/20;
+}
+
+.dark .bg-green-500 {
+  @apply bg-dracula-green;
+}
+
+.dark .text-green-500 {
+  @apply text-dracula-green;
+}
+
+.dark .text-green-600 {
+  @apply text-dracula-green;
+}
+
+.dark .text-green-800 {
+  @apply text-dracula-green;
+}
+
+/* Red colors */
+.dark .text-red-500 {
+  @apply text-dracula-red;
+}
+
+.dark .text-red-600 {
+  @apply text-dracula-red;
+}
+
+.dark .text-red-800 {
+  @apply text-dracula-red;
+}
+
+.dark .bg-red-100 {
+  @apply bg-dracula-red/20;
+}
+
+/* Blue colors */
+.dark .text-blue-500 {
+  @apply text-dracula-cyan;
+}
+
+.dark .text-blue-600 {
+  @apply text-dracula-cyan;
+}
+
+.dark .text-blue-800 {
+  @apply text-dracula-cyan;
+}
+
+.dark .bg-blue-100 {
+  @apply bg-dracula-cyan/20;
+}
+
+/* Purple colors */
+.dark .text-purple-600 {
+  @apply text-dracula-purple;
+}
+
+.dark .bg-purple-100 {
+  @apply bg-dracula-purple/20;
+}
+
+/* Yellow/Orange colors */
+.dark .text-yellow-500 {
+  @apply text-dracula-yellow;
+}
+
+.dark .text-yellow-600 {
+  @apply text-dracula-yellow;
+}
+
+.dark .bg-yellow-100 {
+  @apply bg-dracula-yellow/20;
+}
+
+.dark .text-orange-500 {
+  @apply text-dracula-orange;
+}
+
+.dark .text-orange-600 {
+  @apply text-dracula-orange;
+}
+
+/* Hover states */
+.dark .hover\:bg-gray-50:hover {
+  @apply bg-dracula-selection/70;
+}
+
+.dark .hover\:bg-gray-100:hover {
+  @apply bg-dracula-selection;
+}
+
+.dark .hover\:text-gray-700:hover {
+  @apply text-dracula-fg;
+}
+
+.dark .hover\:text-gray-800:hover {
+  @apply text-dracula-fg;
+}
+
+.dark .hover\:text-blue-800:hover {
+  @apply text-dracula-cyan;
+}
+
+.dark .hover\:text-green-800:hover {
+  @apply text-dracula-green;
+}
+
+.dark .hover\:text-red-800:hover {
+  @apply text-dracula-red;
+}
+
+/* Specific component fixes */
+
+/* Device info panels - better label contrast */
+.dark .space-y-2 dt,
+.dark .space-y-2 .text-gray-500 {
+  @apply text-dracula-pink;
+}
+
+/* Sensor value cards */
+.dark .bg-gray-50.rounded-lg .text-gray-500,
+.dark .bg-gray-50.rounded-lg .text-sm.text-gray-500 {
+  @apply text-dracula-cyan;
+}
+
+/* Output/Load info panels */
+.dark .bg-gray-50.rounded-lg p.text-sm {
+  @apply text-dracula-pink;
+}
+
+/* Outlet control cards */
+.dark .rounded-lg.border-2 p.font-medium {
+  @apply text-dracula-fg;
+}
+
+.dark .rounded-lg.border-2 .text-xs {
+  @apply text-dracula-cyan;
+}
+
+/* Small muted text should be more visible */
+.dark .text-xs.text-gray-500 {
+  @apply text-dracula-comment;
+}
+
+.dark .text-sm.text-gray-500 {
+  @apply text-dracula-pink;
+}
+
+/* Fix modal text */
+.dark .px-6.py-4 h2 {
+  @apply text-dracula-fg;
+}
+
+.dark .px-6.py-4 .text-sm {
+  @apply text-dracula-fg/90;
+}
+
+/* Scrollbar styling for dark mode */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #282a36;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #6272a4;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #bd93f9;
+}
+
+/* Focus states */
+.dark *:focus {
+  outline-color: #bd93f9;
+}
+
+/* Links */
+.dark a {
+  @apply text-dracula-cyan hover:text-dracula-pink;
+}
+
+/* Code/pre elements */
+.dark code, .dark pre {
+  @apply bg-dracula-bg text-dracula-fg;
+}

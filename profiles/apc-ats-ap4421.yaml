@@ -1,0 +1,266 @@
+id: apc-ats-ap4421
+name: APC Automatic Transfer Switch
+manufacturer: APC
+model: AP4421
+category: ats
+sys_object_id: ".1.3.6.1.4.1.318.1.3.11"
+
+poll_groups:
+  frequent: 1    # Every poll interval
+  static: 10     # Every 10th poll
+
+oid_mappings:
+  # System Information
+  - oid: ".1.3.6.1.2.1.1.1.0"
+    name: "System Description"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: static
+
+  - oid: ".1.3.6.1.2.1.1.5.0"
+    name: "System Name"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: static
+
+  # Active/Selected Source
+  - oid: ".1.3.6.1.4.1.318.1.1.8.5.1.2.0"
+    name: "Selected Source"
+    type: enum
+    ha_component: sensor
+    icon: "mdi:electric-switch"
+    enum_values:
+      1: "Source A"
+      2: "Source B"
+    poll_group: frequent
+
+  # Switch Preferred Source (writable)
+  - oid: ".1.3.6.1.4.1.318.1.1.8.5.1.2.0"
+    name: "Preferred Source"
+    type: enum
+    ha_component: select
+    writable: true
+    write_oid: ".1.3.6.1.4.1.318.1.1.8.4.2.0"
+    icon: "mdi:swap-horizontal"
+    enum_values:
+      1: "Source A"
+      2: "Source B"
+    poll_group: frequent
+
+  # Source Names
+  - oid: ".1.3.6.1.4.1.318.1.1.8.5.3.2.1.6.1"
+    name: "Source A Name"
+    type: string
+    ha_component: sensor
+    icon: "mdi:rename-box"
+    category: diagnostic
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.8.5.3.2.1.6.2"
+    name: "Source B Name"
+    type: string
+    ha_component: sensor
+    icon: "mdi:rename-box"
+    category: diagnostic
+    poll_group: frequent
+
+  # Input A Measurements
+  - oid: ".1.3.6.1.4.1.318.1.1.8.5.3.3.1.3.1.1.1"
+    name: "Source A Voltage"
+    type: gauge
+    unit: "V"
+    ha_component: sensor
+    device_class: voltage
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.8.5.3.2.1.4.1"
+    name: "Source A Frequency"
+    type: gauge
+    unit: "Hz"
+    ha_component: sensor
+    device_class: frequency
+    state_class: measurement
+    poll_group: frequent
+
+  # Input B Measurements
+  - oid: ".1.3.6.1.4.1.318.1.1.8.5.3.3.1.3.2.1.1"
+    name: "Source B Voltage"
+    type: gauge
+    unit: "V"
+    ha_component: sensor
+    device_class: voltage
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.8.5.3.2.1.4.2"
+    name: "Source B Frequency"
+    type: gauge
+    unit: "Hz"
+    ha_component: sensor
+    device_class: frequency
+    state_class: measurement
+    poll_group: frequent
+
+  # Output Measurements
+  - oid: ".1.3.6.1.4.1.318.1.1.8.5.4.3.1.3.1.1.1"
+    name: "Output Voltage"
+    type: gauge
+    unit: "V"
+    ha_component: sensor
+    device_class: voltage
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.8.5.4.2.1.4.1"
+    name: "Output Frequency"
+    type: gauge
+    unit: "Hz"
+    ha_component: sensor
+    device_class: frequency
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.8.5.4.3.1.4.1.1.1"
+    name: "Output Current"
+    type: gauge
+    unit: "A"
+    scale: 0.1
+    ha_component: sensor
+    device_class: current
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.8.5.4.3.1.13.1.1.1"
+    name: "Output Apparent Power"
+    type: gauge
+    unit: "VA"
+    ha_component: sensor
+    device_class: apparent_power
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.8.5.4.3.1.16.1.1.1"
+    name: "Output Load"
+    type: gauge
+    unit: "%"
+    ha_component: sensor
+    state_class: measurement
+    icon: "mdi:gauge"
+    poll_group: frequent
+
+  # Status/Fault indicators (from NUT apc-ats-mib.c)
+
+  # atsStatusRedundancyState
+  - oid: ".1.3.6.1.4.1.318.1.1.8.5.1.3.0"
+    name: "Redundancy State"
+    type: enum
+    ha_component: binary_sensor
+    device_class: safety
+    icon: "mdi:shield-check"
+    enum_values:
+      1: "Lost"
+      2: "Redundant"
+    poll_group: frequent
+
+  # atsStatusOverCurrentState
+  - oid: ".1.3.6.1.4.1.318.1.1.8.5.1.4.0"
+    name: "Over Current State"
+    type: enum
+    ha_component: binary_sensor
+    device_class: problem
+    icon: "mdi:flash-alert"
+    enum_values:
+      1: "Over Current"
+      2: "Normal"
+    poll_group: frequent
+
+  # atsStatusSwitchStatus
+  - oid: ".1.3.6.1.4.1.318.1.1.8.5.1.10.0"
+    name: "Switch Status"
+    type: enum
+    ha_component: binary_sensor
+    device_class: problem
+    icon: "mdi:electric-switch"
+    enum_values:
+      1: "Fault"
+      2: "OK"
+    poll_group: frequent
+
+  # atsStatusVoltageOutStatus (output status)
+  - oid: ".1.3.6.1.4.1.318.1.1.8.5.1.15.0"
+    name: "Output Status"
+    type: enum
+    ha_component: binary_sensor
+    device_class: power
+    icon: "mdi:power"
+    enum_values:
+      1: "OK"
+      2: "OFF"
+    poll_group: frequent
+
+  # atsStatusHardwareStatus
+  - oid: ".1.3.6.1.4.1.318.1.1.8.5.1.16.0"
+    name: "Hardware Status"
+    type: enum
+    ha_component: binary_sensor
+    device_class: problem
+    icon: "mdi:chip"
+    enum_values:
+      1: "Fault"
+      2: "OK"
+    poll_group: frequent
+
+  # Input A Status (atsStatusSourceAStatus)
+  - oid: ".1.3.6.1.4.1.318.1.1.8.5.1.12.0"
+    name: "Source A Status"
+    type: enum
+    ha_component: binary_sensor
+    device_class: power
+    icon: "mdi:power-plug"
+    enum_values:
+      1: "Failed"
+      2: "OK"
+    poll_group: frequent
+
+  # Input B Status (atsStatusSourceBStatus)
+  - oid: ".1.3.6.1.4.1.318.1.1.8.5.1.13.0"
+    name: "Source B Status"
+    type: enum
+    ha_component: binary_sensor
+    device_class: power
+    icon: "mdi:power-plug"
+    enum_values:
+      1: "Failed"
+      2: "OK"
+    poll_group: frequent
+
+  # Transfer Settings
+  - oid: ".1.3.6.1.4.1.318.1.1.8.4.1.1.0"
+    name: "Transfer Voltage Range"
+    type: enum
+    ha_component: select
+    writable: true
+    write_oid: ".1.3.6.1.4.1.318.1.1.8.4.1.1.0"
+    icon: "mdi:sine-wave"
+    enum_values:
+      1: "Narrow"
+      2: "Medium"
+      3: "Wide"
+    poll_group: static
+    category: config
+
+  - oid: ".1.3.6.1.4.1.318.1.1.8.4.1.4.0"
+    name: "Sensitivity"
+    type: enum
+    ha_component: select
+    writable: true
+    write_oid: ".1.3.6.1.4.1.318.1.1.8.4.1.4.0"
+    icon: "mdi:tune"
+    enum_values:
+      1: "High"
+      2: "Low"
+    poll_group: static
+    category: config

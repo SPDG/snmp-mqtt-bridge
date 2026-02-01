@@ -1,0 +1,225 @@
+id: apc-pdu-ap7921
+name: APC Switched Rack PDU
+manufacturer: APC
+model: AP7921
+category: pdu
+sys_object_id: ".1.3.6.1.4.1.318.1.3.4.5"
+
+poll_groups:
+  frequent: 1    # Every poll interval
+  static: 10     # Every 10th poll
+
+oid_mappings:
+  # System Information
+  - oid: ".1.3.6.1.2.1.1.1.0"
+    name: "System Description"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: static
+
+  - oid: ".1.3.6.1.2.1.1.5.0"
+    name: "System Name"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: static
+
+  # PDU Identity
+  - oid: ".1.3.6.1.4.1.318.1.1.4.1.1.0"
+    name: "PDU Name"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: static
+
+  - oid: ".1.3.6.1.4.1.318.1.1.4.1.4.0"
+    name: "Firmware Version"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: static
+
+  - oid: ".1.3.6.1.4.1.318.1.1.4.1.5.0"
+    name: "Serial Number"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: static
+
+  # Power Measurements (Phase 1 - single phase PDU)
+  - oid: ".1.3.6.1.4.1.318.1.1.12.2.3.1.1.2.1"
+    name: "Load"
+    type: gauge
+    unit: "A"
+    scale: 0.1
+    ha_component: sensor
+    device_class: current
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.12.2.3.1.1.3.1"
+    name: "Load State"
+    type: enum
+    ha_component: sensor
+    icon: "mdi:gauge"
+    enum_values:
+      1: "Low Load"
+      2: "Normal"
+      3: "Near Overload"
+      4: "Overload"
+    poll_group: frequent
+
+  # Outlet Status (outlets 1-8)
+  - oid: ".1.3.6.1.4.1.318.1.1.12.3.5.1.1.4.1"
+    name: "Outlet 1 State"
+    type: enum
+    ha_component: switch
+    writable: true
+    write_oid: ".1.3.6.1.4.1.318.1.1.12.3.3.1.1.4.1"
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "On"
+      2: "Off"
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.12.3.5.1.1.4.2"
+    name: "Outlet 2 State"
+    type: enum
+    ha_component: switch
+    writable: true
+    write_oid: ".1.3.6.1.4.1.318.1.1.12.3.3.1.1.4.2"
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "On"
+      2: "Off"
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.12.3.5.1.1.4.3"
+    name: "Outlet 3 State"
+    type: enum
+    ha_component: switch
+    writable: true
+    write_oid: ".1.3.6.1.4.1.318.1.1.12.3.3.1.1.4.3"
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "On"
+      2: "Off"
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.12.3.5.1.1.4.4"
+    name: "Outlet 4 State"
+    type: enum
+    ha_component: switch
+    writable: true
+    write_oid: ".1.3.6.1.4.1.318.1.1.12.3.3.1.1.4.4"
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "On"
+      2: "Off"
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.12.3.5.1.1.4.5"
+    name: "Outlet 5 State"
+    type: enum
+    ha_component: switch
+    writable: true
+    write_oid: ".1.3.6.1.4.1.318.1.1.12.3.3.1.1.4.5"
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "On"
+      2: "Off"
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.12.3.5.1.1.4.6"
+    name: "Outlet 6 State"
+    type: enum
+    ha_component: switch
+    writable: true
+    write_oid: ".1.3.6.1.4.1.318.1.1.12.3.3.1.1.4.6"
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "On"
+      2: "Off"
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.12.3.5.1.1.4.7"
+    name: "Outlet 7 State"
+    type: enum
+    ha_component: switch
+    writable: true
+    write_oid: ".1.3.6.1.4.1.318.1.1.12.3.3.1.1.4.7"
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "On"
+      2: "Off"
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.12.3.5.1.1.4.8"
+    name: "Outlet 8 State"
+    type: enum
+    ha_component: switch
+    writable: true
+    write_oid: ".1.3.6.1.4.1.318.1.1.12.3.3.1.1.4.8"
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "On"
+      2: "Off"
+    poll_group: frequent
+
+  # Outlet Names
+  - oid: ".1.3.6.1.4.1.318.1.1.12.3.5.1.1.2.1"
+    name: "Outlet 1 Name"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.12.3.5.1.1.2.2"
+    name: "Outlet 2 Name"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.12.3.5.1.1.2.3"
+    name: "Outlet 3 Name"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.12.3.5.1.1.2.4"
+    name: "Outlet 4 Name"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.12.3.5.1.1.2.5"
+    name: "Outlet 5 Name"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.12.3.5.1.1.2.6"
+    name: "Outlet 6 Name"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.12.3.5.1.1.2.7"
+    name: "Outlet 7 Name"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.318.1.1.12.3.5.1.1.2.8"
+    name: "Outlet 8 Name"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
