@@ -1,6 +1,6 @@
 name: "SNMP-MQTT Bridge"
 description: "Bridge SNMP devices (UPS, ATS, PDU) to Home Assistant via MQTT with auto-discovery"
-version: "0.0.6"
+version: "0.0.7"
 slug: snmp-mqtt-bridge
 url: "https://github.com/SPDG/snmp-mqtt-bridge"
 image: "ghcr.io/spdg/snmp-mqtt-bridge/{arch}"
