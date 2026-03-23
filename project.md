@@ -68,10 +68,11 @@ A Go application that bridges SNMP devices (UPS, ATS, PDU) to Home Assistant via
 ### Pending Features
 
 #### Phase 8: Docker & HA Addon
-- [ ] Multi-stage Dockerfile
-- [ ] S6 Overlay services
-- [ ] HA Addon config (Ingress support)
-- [ ] bashio integration for MQTT credentials
+- [x] Multi-stage Dockerfile (in `docker/Dockerfile`)
+- [x] S6 Overlay services (in `docker/rootfs`)
+- [x] HA Addon config (Ingress support)
+- [x] bashio integration for MQTT credentials
+- [x] Bridge self-discovery in HA
 - [ ] GitHub Container Registry publishing
 
 #### Future Enhancements

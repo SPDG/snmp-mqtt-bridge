@@ -99,7 +99,7 @@ func (s *Server) setupRoutes(frontendFS embed.FS) {
 		}
 
 		// Settings
-		settingHandler := handler.NewSettingHandler(s.services.Setting)
+		settingHandler := handler.NewSettingHandler(s.services.Setting, s.cfg)
 		if s.services.MQTTClient != nil {
 			settingHandler.SetMQTTClient(s.services.MQTTClient)
 		}

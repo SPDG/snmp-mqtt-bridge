@@ -23,11 +23,15 @@ type MQTTReconnector interface {
 type SettingHandler struct {
 	settingService *service.SettingService
 	mqttClient     MQTTReconnector
+	appCfg         *config.Config
 }
 
 // NewSettingHandler creates a new setting handler
-func NewSettingHandler(settingService *service.SettingService) *SettingHandler {
-	return &SettingHandler{settingService: settingService}
+func NewSettingHandler(settingService *service.SettingService, appCfg *config.Config) *SettingHandler {
+	return &SettingHandler{
+		settingService: settingService,
+		appCfg:         appCfg,
+	}
 }
 
 // SetMQTTClient sets the MQTT client for reconnection support
@@ -45,6 +49,19 @@ func (h *SettingHandler) List(c *gin.Context) {
 
 	// Convert to map for easier frontend consumption
 	settingsMap := make(map[string]string)
+
+	// Add defaults from appCfg
+	settingsMap["mqtt.broker"] = h.appCfg.MQTT.Broker
+	settingsMap["mqtt.port"] = strconv.Itoa(h.appCfg.MQTT.Port)
+	settingsMap["mqtt.username"] = h.appCfg.MQTT.Username
+	settingsMap["mqtt.password"] = h.appCfg.MQTT.Password
+	settingsMap["mqtt.client_id"] = h.appCfg.MQTT.ClientID
+	settingsMap["mqtt.topic_prefix"] = h.appCfg.MQTT.TopicPrefix
+	settingsMap["mqtt.discovery_prefix"] = h.appCfg.MQTT.DiscoveryPrefix
+	settingsMap["snmp.poll_interval"] = strconv.Itoa(int(h.appCfg.SNMP.PollInterval.Seconds()))
+	settingsMap["snmp.trap_port"] = strconv.Itoa(h.appCfg.SNMP.TrapPort)
+
+	// Override with database settings
 	for _, s := range settings {
 		settingsMap[s.Key] = s.Value
 	}
@@ -60,6 +77,30 @@ func (h *SettingHandler) Get(c *gin.Context) {
 	if err != nil {
 		RespondInternalError(c, err.Error())
 		return
+	}
+
+	// If not in DB, try to get from appCfg
+	if value == "" {
+		switch key {
+		case "mqtt.broker":
+			value = h.appCfg.MQTT.Broker
+		case "mqtt.port":
+			value = strconv.Itoa(h.appCfg.MQTT.Port)
+		case "mqtt.username":
+			value = h.appCfg.MQTT.Username
+		case "mqtt.password":
+			value = h.appCfg.MQTT.Password
+		case "mqtt.client_id":
+			value = h.appCfg.MQTT.ClientID
+		case "mqtt.topic_prefix":
+			value = h.appCfg.MQTT.TopicPrefix
+		case "mqtt.discovery_prefix":
+			value = h.appCfg.MQTT.DiscoveryPrefix
+		case "snmp.poll_interval":
+			value = strconv.Itoa(int(h.appCfg.SNMP.PollInterval.Seconds()))
+		case "snmp.trap_port":
+			value = strconv.Itoa(h.appCfg.SNMP.TrapPort)
+		}
 	}
 
 	if value == "" {
@@ -200,14 +241,8 @@ func (h *SettingHandler) TestMQTTConnection(c *gin.Context) {
 
 // loadMQTTConfig loads MQTT configuration from database settings
 func (h *SettingHandler) loadMQTTConfig(ctx context.Context) (*config.MQTTConfig, error) {
-	cfg := &config.MQTTConfig{
-		Broker:          "localhost",
-		Port:            1883,
-		ClientID:        "snmp-mqtt-bridge",
-		TopicPrefix:     "snmp-bridge",
-		Discovery:       true,
-		DiscoveryPrefix: "homeassistant",
-	}
+	// Start with environment/file defaults
+	cfg := h.appCfg.MQTT
 
 	if broker, _ := h.settingService.Get(ctx, "mqtt.broker"); broker != "" {
 		cfg.Broker = broker
@@ -233,5 +268,5 @@ func (h *SettingHandler) loadMQTTConfig(ctx context.Context) (*config.MQTTConfig
 		cfg.DiscoveryPrefix = discoveryPrefix
 	}
 
-	return cfg, nil
+	return &cfg, nil
 }

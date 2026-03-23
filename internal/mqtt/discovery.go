@@ -60,6 +60,35 @@ func NewDiscovery(client *Client, discoveryPrefix, topicPrefix string) *Discover
 	}
 }
 
+// PublishBridgeDiscovery publishes discovery config for the bridge itself
+func (d *Discovery) PublishBridgeDiscovery() error {
+	haDevice := &DiscoveryDevice{
+		Identifiers:  []string{"snmp_mqtt_bridge"},
+		Name:         "SNMP-MQTT Bridge",
+		Manufacturer: "SPDG",
+		Model:        "Bridge",
+		SwVersion:    "1.0.0",
+	}
+
+	availabilityTopic := fmt.Sprintf("%s/bridge/status", d.topicPrefix)
+
+	config := &DiscoveryConfig{
+		Name:              "Bridge Status",
+		UniqueID:          "snmp_bridge_status",
+		ObjectID:          "snmp_bridge_status",
+		Device:            haDevice,
+		StateTopic:        availabilityTopic,
+		AvailabilityTopic: availabilityTopic,
+		PayloadAvailable:  "online",
+		PayloadNotAvailable: "offline",
+		EntityCategory:    "diagnostic",
+		Icon:              "mdi:lan-connect",
+	}
+
+	topic := fmt.Sprintf("%s/sensor/snmp_bridge/status/config", d.discoveryPrefix)
+	return d.client.Publish(topic, config, true)
+}
+
 // PublishDevice publishes discovery configs for all entities of a device
 func (d *Discovery) PublishDevice(device *domain.Device, profile *domain.Profile) error {
 	if profile == nil {
