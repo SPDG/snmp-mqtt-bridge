@@ -60,6 +60,13 @@ func (p *Publisher) Start() error {
 
 	go p.handleEvents(eventChan)
 
+	// Publish discovery for the bridge itself
+	if p.client.IsConnected() {
+		if err := p.discovery.PublishBridgeDiscovery(); err != nil {
+			log.Printf("Failed to publish bridge discovery: %v", err)
+		}
+	}
+
 	log.Println("MQTT publisher started")
 	return nil
 }
