@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,13 +33,13 @@ type DatabaseConfig struct {
 }
 
 type MQTTConfig struct {
-	Broker       string `mapstructure:"broker"`
-	Port         int    `mapstructure:"port"`
-	Username     string `mapstructure:"username"`
-	Password     string `mapstructure:"password"`
-	ClientID     string `mapstructure:"client_id"`
-	TopicPrefix  string `mapstructure:"topic_prefix"`
-	Discovery    bool   `mapstructure:"discovery"`
+	Broker          string `mapstructure:"broker"`
+	Port            int    `mapstructure:"port"`
+	Username        string `mapstructure:"username"`
+	Password        string `mapstructure:"password"`
+	ClientID        string `mapstructure:"client_id"`
+	TopicPrefix     string `mapstructure:"topic_prefix"`
+	Discovery       bool   `mapstructure:"discovery"`
 	DiscoveryPrefix string `mapstructure:"discovery_prefix"`
 }
 
@@ -128,5 +129,5 @@ func (c *DatabaseConfig) GetDSN() string {
 	if c.DSN != "" {
 		return c.DSN
 	}
-	return "host=" + c.Host + " port=" + string(rune(c.Port)) + " user=" + c.User + " password=" + c.Password + " dbname=" + c.DBName + " sslmode=disable"
+	return "host=" + c.Host + " port=" + strconv.Itoa(c.Port) + " user=" + c.User + " password=" + c.Password + " dbname=" + c.DBName + " sslmode=disable"
 }
