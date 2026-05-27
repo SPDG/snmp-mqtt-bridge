@@ -457,6 +457,10 @@ select {
   background: var(--ui-accent-soft);
 }
 
+.dark .bg-blue-50 {
+  background: var(--ui-accent-soft);
+}
+
 .dark .bg-yellow-100 {
   background: color-mix(in srgb, var(--ui-warning) 16%, transparent);
 }
@@ -508,6 +512,10 @@ select {
 
 .dark .border-green-500 {
   border-color: var(--ui-success);
+}
+
+.dark .border-blue-500 {
+  border-color: var(--ui-accent);
 }
 
 .dark .bg-green-500 {
