@@ -55,12 +55,29 @@ function cleanName(value, fallback) {
   return cleaned || fallback
 }
 
+function getOutletNumbers() {
+  const numbers = new Set()
+  const outletPattern = /^Outlet (\d+) (?:Name|State|Current|Power|Energy|Voltage)$/
+
+  for (const mapping of profile.value?.oid_mappings || []) {
+    const match = mapping.name?.match(outletPattern)
+    if (match) numbers.add(Number(match[1]))
+  }
+
+  for (const name of Object.keys(state.value?.values || {})) {
+    const match = name.match(outletPattern)
+    if (match) numbers.add(Number(match[1]))
+  }
+
+  return [...numbers].sort((a, b) => a - b)
+}
+
 function sumOutletMetric(metric) {
   if (!state.value?.values) return null
 
   let total = 0
   let hasValue = false
-  for (let i = 1; i <= 8; i++) {
+  for (const i of getOutletNumbers()) {
     const value = toNumber(state.value.values[`Outlet ${i} ${metric}`])
     if (value !== null) {
       total += value
@@ -92,7 +109,7 @@ const outlets = computed(() => {
   const now = Date.now()
   const PENDING_TIMEOUT = 10000 // 10 seconds
 
-  for (let i = 1; i <= 8; i++) {
+  for (const i of getOutletNumbers()) {
     const name = cleanName(state.value.values[`Outlet ${i} Name`], `Outlet ${i}`)
     let stateVal = state.value.values[`Outlet ${i} State`]
     const current = toNumber(state.value.values[`Outlet ${i} Current`])
