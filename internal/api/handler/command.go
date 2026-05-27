@@ -202,6 +202,15 @@ func (h *CommandHandler) SetOutletState(c *gin.Context) {
 		}
 		// Format: state,-1,-1,-1,-1,-1,-1,-1
 		value = fmt.Sprintf("%s,-1,-1,-1,-1,-1,-1,-1", stateValue)
+	} else if strings.HasPrefix(device.ProfileID, "aten") {
+		// ATEN PE series: outlet N status is .1.3.6.1.4.1.21317.1.3.2.2.2.2.(N+1).0
+		// Values: 1 = off, 2 = on, 4 = reboot
+		controlOID = fmt.Sprintf(".1.3.6.1.4.1.21317.1.3.2.2.2.2.%d.0", req.Outlet+1)
+		if req.State == "on" {
+			value = 2
+		} else {
+			value = 1
+		}
 	} else {
 		// APC PDU: OID is .1.3.6.1.4.1.318.1.1.12.3.3.1.1.4.<outlet>
 		// Values: 1 = immediateOn, 2 = immediateOff, 3 = immediateReboot
@@ -264,6 +273,10 @@ func (h *CommandHandler) SetOutletName(c *gin.Context) {
 		// Value is comma-separated string: "Name,0,0,0,0" where first position is name
 		nameOID = fmt.Sprintf(".1.3.6.1.4.1.17420.1.2.9.%d.14.1.0", req.Outlet)
 		value = fmt.Sprintf("%s,0,0,0,0", req.Name)
+	} else if strings.HasPrefix(device.ProfileID, "aten") {
+		// ATEN PE series outlet name table.
+		nameOID = fmt.Sprintf(".1.3.6.1.4.1.21317.1.3.2.2.2.2.10.1.2.%d", req.Outlet)
+		value = req.Name
 	} else {
 		// APC PDU: OID is .1.3.6.1.4.1.318.1.1.12.3.4.1.1.2.<outlet>
 		nameOID = fmt.Sprintf(".1.3.6.1.4.1.318.1.1.12.3.4.1.1.2.%d", req.Outlet)
@@ -301,10 +314,23 @@ func (h *CommandHandler) RebootOutlet(c *gin.Context) {
 		return
 	}
 
-	// PDU outlet control OID with value 3 = immediateReboot
-	controlOID := fmt.Sprintf(".1.3.6.1.4.1.318.1.1.12.3.3.1.1.4.%d", req.Outlet)
+	ctx := c.Request.Context()
 
-	if err := h.snmpService.SetValue(c.Request.Context(), deviceID, controlOID, 3); err != nil {
+	device, err := h.deviceService.GetByID(ctx, deviceID)
+	if err != nil {
+		RespondError(c, 404, "Device not found")
+		return
+	}
+
+	controlOID := fmt.Sprintf(".1.3.6.1.4.1.318.1.1.12.3.3.1.1.4.%d", req.Outlet)
+	value := 3
+	if strings.HasPrefix(device.ProfileID, "aten") {
+		// ATEN PE series uses 4 for per-outlet reboot.
+		controlOID = fmt.Sprintf(".1.3.6.1.4.1.21317.1.3.2.2.2.2.%d.0", req.Outlet+1)
+		value = 4
+	}
+
+	if err := h.snmpService.SetValue(ctx, deviceID, controlOID, value); err != nil {
 		RespondError(c, 500, err.Error())
 		return
 	}
