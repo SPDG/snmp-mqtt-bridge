@@ -1,0 +1,285 @@
+# ATEN PE8108G eco PDU profile
+# Tested against PE8108G firmware 2.5.248 with SNMP v2c.
+
+id: aten-pdu-pe8108g
+name: ATEN PE8108G eco PDU
+manufacturer: ATEN
+model: PE8108G
+category: pdu
+sys_object_id: ".1.3.6.1.4.1.21317"
+snmp_versions:
+  - v1
+  - v2c
+
+poll_groups:
+  frequent: 1
+  static: 10
+
+oid_mappings:
+  # System Information
+  - oid: ".1.3.6.1.2.1.1.2.0"
+    name: "System Object ID"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: static
+
+  - oid: ".1.3.6.1.2.1.1.5.0"
+    name: "System Name"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: static
+
+  # PDU Identity
+  - oid: ".1.3.6.1.4.1.21317.1.3.2.2.2.1.1.0"
+    name: "Model Name"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: static
+
+  - oid: ".1.3.6.1.4.1.21317.1.3.2.2.2.1.2.0"
+    name: "PDU Name"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: static
+
+  - oid: ".1.3.6.1.4.1.21317.1.3.2.2.2.1.21.0"
+    name: "Serial Number"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: static
+
+  - oid: ".1.3.6.1.4.1.21317.1.3.2.2.3.4.3.0"
+    name: "Firmware Version"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: static
+
+  # Device Measurements
+  - oid: ".1.3.6.1.4.1.21317.1.3.2.2.2.1.3.1.2.1"
+    name: "Total Current"
+    type: gauge
+    unit: "A"
+    scale: 1.0
+    ha_component: sensor
+    device_class: current
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.21317.1.3.2.2.2.1.3.1.3.1"
+    name: "Voltage"
+    type: gauge
+    unit: "V"
+    scale: 1.0
+    ha_component: sensor
+    device_class: voltage
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.21317.1.3.2.2.2.1.3.1.4.1"
+    name: "Active Power"
+    type: gauge
+    unit: "W"
+    scale: 1.0
+    ha_component: sensor
+    device_class: power
+    state_class: measurement
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.21317.1.3.2.2.2.1.3.1.5.1"
+    name: "Power Dissipation"
+    type: gauge
+    unit: "W"
+    scale: 1.0
+    ha_component: sensor
+    device_class: power
+    state_class: measurement
+    poll_group: frequent
+
+  # Outlet Control
+  - oid: ".1.3.6.1.4.1.21317.1.3.2.2.2.2.2.0"
+    name: "Outlet 1 State"
+    type: enum
+    ha_component: switch
+    writable: true
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "Off"
+      2: "On"
+      3: "Pending"
+      4: "Reboot"
+      5: "Fault"
+      6: "No Authorization"
+      7: "Not Supported"
+      8: "POP"
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.21317.1.3.2.2.2.2.3.0"
+    name: "Outlet 2 State"
+    type: enum
+    ha_component: switch
+    writable: true
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "Off"
+      2: "On"
+      3: "Pending"
+      4: "Reboot"
+      5: "Fault"
+      6: "No Authorization"
+      7: "Not Supported"
+      8: "POP"
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.21317.1.3.2.2.2.2.4.0"
+    name: "Outlet 3 State"
+    type: enum
+    ha_component: switch
+    writable: true
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "Off"
+      2: "On"
+      3: "Pending"
+      4: "Reboot"
+      5: "Fault"
+      6: "No Authorization"
+      7: "Not Supported"
+      8: "POP"
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.21317.1.3.2.2.2.2.5.0"
+    name: "Outlet 4 State"
+    type: enum
+    ha_component: switch
+    writable: true
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "Off"
+      2: "On"
+      3: "Pending"
+      4: "Reboot"
+      5: "Fault"
+      6: "No Authorization"
+      7: "Not Supported"
+      8: "POP"
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.21317.1.3.2.2.2.2.6.0"
+    name: "Outlet 5 State"
+    type: enum
+    ha_component: switch
+    writable: true
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "Off"
+      2: "On"
+      3: "Pending"
+      4: "Reboot"
+      5: "Fault"
+      6: "No Authorization"
+      7: "Not Supported"
+      8: "POP"
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.21317.1.3.2.2.2.2.7.0"
+    name: "Outlet 6 State"
+    type: enum
+    ha_component: switch
+    writable: true
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "Off"
+      2: "On"
+      3: "Pending"
+      4: "Reboot"
+      5: "Fault"
+      6: "No Authorization"
+      7: "Not Supported"
+      8: "POP"
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.21317.1.3.2.2.2.2.8.0"
+    name: "Outlet 7 State"
+    type: enum
+    ha_component: switch
+    writable: true
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "Off"
+      2: "On"
+      3: "Pending"
+      4: "Reboot"
+      5: "Fault"
+      6: "No Authorization"
+      7: "Not Supported"
+      8: "POP"
+    poll_group: frequent
+
+  - oid: ".1.3.6.1.4.1.21317.1.3.2.2.2.2.9.0"
+    name: "Outlet 8 State"
+    type: enum
+    ha_component: switch
+    writable: true
+    icon: "mdi:power-socket"
+    enum_values:
+      1: "Off"
+      2: "On"
+      3: "Pending"
+      4: "Reboot"
+      5: "Fault"
+      6: "No Authorization"
+      7: "Not Supported"
+      8: "POP"
+    poll_group: frequent
+
+indexed_oids:
+  - base_oid: ".1.3.6.1.4.1.21317.1.3.2.2.2.2.10.1.2"
+    index_start: 1
+    index_end: 8
+    name_format: "Outlet %d Name"
+    type: string
+    ha_component: sensor
+    category: diagnostic
+    poll_group: frequent
+
+  - base_oid: ".1.3.6.1.4.1.21317.1.3.2.2.2.2.1.1.2"
+    index_start: 1
+    index_end: 8
+    name_format: "Outlet %d Current"
+    type: gauge
+    unit: "A"
+    scale: 1.0
+    ha_component: sensor
+    device_class: current
+    state_class: measurement
+    poll_group: frequent
+
+  - base_oid: ".1.3.6.1.4.1.21317.1.3.2.2.2.2.1.1.3"
+    index_start: 1
+    index_end: 8
+    name_format: "Outlet %d Voltage"
+    type: gauge
+    unit: "V"
+    scale: 1.0
+    ha_component: sensor
+    device_class: voltage
+    state_class: measurement
+    poll_group: frequent
+
+  - base_oid: ".1.3.6.1.4.1.21317.1.3.2.2.2.2.1.1.4"
+    index_start: 1
+    index_end: 8
+    name_format: "Outlet %d Power"
+    type: gauge
+    unit: "W"
+    scale: 1.0
+    ha_component: sensor
+    device_class: power
+    state_class: measurement
+    poll_group: frequent
