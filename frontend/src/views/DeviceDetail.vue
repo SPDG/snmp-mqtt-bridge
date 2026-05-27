@@ -133,6 +133,12 @@ onMounted(async () => {
     if (device.value.profile_id) {
       profile.value = await api.getProfile(device.value.profile_id)
     }
+    try {
+      const currentState = await api.getDeviceState(route.params.id)
+      deviceStore.updateDeviceState(route.params.id, currentState)
+    } catch (e) {
+      // WebSocket updates will fill this once the poller has state.
+    }
   } catch (e) {
     alert('Device not found')
     router.push('/devices')
