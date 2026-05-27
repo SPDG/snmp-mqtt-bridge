@@ -96,6 +96,8 @@ const outlets = computed(() => {
     const name = cleanName(state.value.values[`Outlet ${i} Name`], `Outlet ${i}`)
     let stateVal = state.value.values[`Outlet ${i} State`]
     const current = toNumber(state.value.values[`Outlet ${i} Current`])
+    const power = toNumber(state.value.values[`Outlet ${i} Power`])
+    const energy = toNumber(state.value.values[`Outlet ${i} Energy`])
 
     // Check if there's a pending state that should override poll data
     const pending = pendingOutletStates.value[i]
@@ -113,7 +115,9 @@ const outlets = computed(() => {
       name,
       state: isOn ? 'On' : 'Off',
       isOn,
-      current
+      current,
+      power,
+      energy,
     })
   }
   return result
@@ -125,6 +129,7 @@ const pduSummary = computed(() => {
 
   const outletCurrent = sumOutletMetric('Current')
   const outletPower = sumOutletMetric('Power')
+  const outletEnergy = sumOutletMetric('Energy')
   const voltage = toNumber(state.value.values['Voltage'])
   const totalCurrent = toNumber(state.value.values['Total Current'])
   const activePower = toNumber(state.value.values['Active Power'])
@@ -133,11 +138,12 @@ const pduSummary = computed(() => {
   const effectiveCurrent = totalCurrent && totalCurrent > 0 ? totalCurrent : outletCurrent
   const calculatedPower = voltage !== null && effectiveCurrent !== null ? voltage * effectiveCurrent : null
   const effectivePower = activePower && activePower > 0 ? activePower : (outletPower ?? calculatedPower)
+  const effectiveEnergy = totalEnergy ?? outletEnergy
 
   const hasVoltage = voltage !== null
   const hasCurrent = effectiveCurrent !== null
   const hasPower = effectivePower !== null
-  const hasEnergy = totalEnergy !== null
+  const hasEnergy = effectiveEnergy !== null
 
   return {
     hasVoltage,
@@ -147,7 +153,7 @@ const pduSummary = computed(() => {
     hasPower,
     power: effectivePower,
     hasEnergy,
-    totalEnergy,
+    totalEnergy: effectiveEnergy,
   }
 })
 
@@ -602,11 +608,26 @@ function getValueByMapping(mapping) {
               </span>
             </div>
 
-            <!-- Outlet current -->
-            <div class="text-center mb-2">
-              <span class="text-lg font-semibold dark:text-dracula-yellow">
-                {{ outlet.current !== null ? outlet.current.toFixed(1) : '-' }} A
-              </span>
+            <!-- Outlet measurements -->
+            <div class="grid grid-cols-3 gap-2 text-center mb-2">
+              <div>
+                <p class="text-xs text-gray-500 dark:text-dracula-cyan">Current</p>
+                <span class="text-sm font-semibold dark:text-dracula-yellow">
+                  {{ outlet.current !== null ? outlet.current.toFixed(2) : '-' }} A
+                </span>
+              </div>
+              <div>
+                <p class="text-xs text-gray-500 dark:text-dracula-cyan">Power</p>
+                <span class="text-sm font-semibold dark:text-dracula-yellow">
+                  {{ outlet.power !== null ? outlet.power.toFixed(1) : '-' }} W
+                </span>
+              </div>
+              <div>
+                <p class="text-xs text-gray-500 dark:text-dracula-cyan">Energy</p>
+                <span class="text-sm font-semibold dark:text-dracula-yellow">
+                  {{ outlet.energy !== null ? outlet.energy.toFixed(4) : '-' }} kWh
+                </span>
+              </div>
             </div>
 
             <div class="flex gap-2 mt-3">

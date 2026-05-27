@@ -92,13 +92,13 @@ oid_mappings:
     poll_group: frequent
 
   - oid: ".1.3.6.1.4.1.21317.1.3.2.2.2.1.3.1.5.1"
-    name: "Power Dissipation"
+    name: "Total Energy"
     type: gauge
-    unit: "W"
+    unit: "kWh"
     scale: 1.0
     ha_component: sensor
-    device_class: power
-    state_class: measurement
+    device_class: energy
+    state_class: total_increasing
     poll_group: frequent
 
   # Outlet Control
@@ -282,4 +282,16 @@ indexed_oids:
     ha_component: sensor
     device_class: power
     state_class: measurement
+    poll_group: frequent
+
+  - base_oid: ".1.3.6.1.4.1.21317.1.3.2.2.2.2.1.1.5"
+    index_start: 1
+    index_end: 8
+    name_format: "Outlet %d Energy"
+    type: gauge
+    unit: "kWh"
+    scale: 1.0
+    ha_component: sensor
+    device_class: energy
+    state_class: total_increasing
     poll_group: frequent
