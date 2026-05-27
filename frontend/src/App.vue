@@ -36,8 +36,7 @@ function initDarkMode() {
   if (saved !== null) {
     darkMode.value = saved === 'true'
   } else {
-    // This UI is optimized for the UniFi/SRNE-style dark console.
-    darkMode.value = true
+    darkMode.value = window.matchMedia('(prefers-color-scheme: dark)').matches
   }
   applyDarkMode()
 }

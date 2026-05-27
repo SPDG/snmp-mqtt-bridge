@@ -203,7 +203,8 @@ func (h *CommandHandler) SetOutletState(c *gin.Context) {
 		// Format: state,-1,-1,-1,-1,-1,-1,-1
 		value = fmt.Sprintf("%s,-1,-1,-1,-1,-1,-1,-1", stateValue)
 	} else if strings.HasPrefix(device.ProfileID, "aten") {
-		// ATEN PE series: outlet N status is .1.3.6.1.4.1.21317.1.3.2.2.2.2.(N+1).0
+		// ATEN PE8108G indexes physical outlet 1 at SNMP table index 2.
+		// Outlet N status is .1.3.6.1.4.1.21317.1.3.2.2.2.2.(N+1).0.
 		// Values: 1 = off, 2 = on, 4 = reboot
 		controlOID = fmt.Sprintf(".1.3.6.1.4.1.21317.1.3.2.2.2.2.%d.0", req.Outlet+1)
 		if req.State == "on" {
