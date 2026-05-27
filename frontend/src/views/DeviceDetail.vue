@@ -44,6 +44,46 @@ const isPDU = computed(() => {
   return profile.value?.category === 'pdu'
 })
 
+function toNumber(value) {
+  if (value === null || value === undefined || value === '') return null
+  const parsed = parseFloat(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function cleanName(value, fallback) {
+  const cleaned = String(value ?? '').replace(/\0/g, '').trim()
+  return cleaned || fallback
+}
+
+function sumOutletMetric(metric) {
+  if (!state.value?.values) return null
+
+  let total = 0
+  let hasValue = false
+  for (let i = 1; i <= 8; i++) {
+    const value = toNumber(state.value.values[`Outlet ${i} ${metric}`])
+    if (value !== null) {
+      total += value
+      hasValue = true
+    }
+  }
+
+  return hasValue ? total : null
+}
+
+function setLocalStateValue(name, value) {
+  const currentState = deviceStore.getDeviceState(route.params.id)
+  if (!currentState) return
+
+  deviceStore.updateDeviceState(route.params.id, {
+    ...currentState,
+    values: {
+      ...currentState.values,
+      [name]: value,
+    },
+  })
+}
+
 // PDU outlet data
 const outlets = computed(() => {
   if (!state.value?.values || !isPDU.value) return []
@@ -53,9 +93,9 @@ const outlets = computed(() => {
   const PENDING_TIMEOUT = 10000 // 10 seconds
 
   for (let i = 1; i <= 8; i++) {
-    const name = state.value.values[`Outlet ${i} Name`] || `Outlet ${i}`
+    const name = cleanName(state.value.values[`Outlet ${i} Name`], `Outlet ${i}`)
     let stateVal = state.value.values[`Outlet ${i} State`]
-    const current = state.value.values[`Outlet ${i} Current`] ?? null
+    const current = toNumber(state.value.values[`Outlet ${i} Current`])
 
     // Check if there's a pending state that should override poll data
     const pending = pendingOutletStates.value[i]
@@ -83,20 +123,31 @@ const outlets = computed(() => {
 const pduSummary = computed(() => {
   if (!state.value?.values || !isPDU.value) return null
 
-  const voltage = parseFloat(state.value.values['Voltage']) || 0
-  const totalCurrent = parseFloat(state.value.values['Total Current']) || 0
-  const activePower = parseFloat(state.value.values['Active Power']) || 0
-  const totalEnergy = parseFloat(state.value.values['Total Energy']) || 0
+  const outletCurrent = sumOutletMetric('Current')
+  const outletPower = sumOutletMetric('Power')
+  const voltage = toNumber(state.value.values['Voltage'])
+  const totalCurrent = toNumber(state.value.values['Total Current'])
+  const activePower = toNumber(state.value.values['Active Power'])
+  const totalEnergy = toNumber(state.value.values['Total Energy'])
 
-  // Calculate power if not provided (P = V * I)
-  const calculatedPower = voltage * totalCurrent
-  const power = activePower > 0 ? activePower : calculatedPower
+  const effectiveCurrent = totalCurrent && totalCurrent > 0 ? totalCurrent : outletCurrent
+  const calculatedPower = voltage !== null && effectiveCurrent !== null ? voltage * effectiveCurrent : null
+  const effectivePower = activePower && activePower > 0 ? activePower : (outletPower ?? calculatedPower)
+
+  const hasVoltage = voltage !== null
+  const hasCurrent = effectiveCurrent !== null
+  const hasPower = effectivePower !== null
+  const hasEnergy = totalEnergy !== null
 
   return {
+    hasVoltage,
     voltage,
-    totalCurrent,
-    power,
-    totalEnergy
+    hasCurrent,
+    totalCurrent: effectiveCurrent,
+    hasPower,
+    power: effectivePower,
+    hasEnergy,
+    totalEnergy,
   }
 })
 
@@ -254,6 +305,7 @@ async function saveOutletName() {
   outletLoading.value[outletNum] = true
   try {
     await api.setOutletName(device.value.id, outletNum, expectedName)
+    setLocalStateValue(`Outlet ${outletNum} Name`, expectedName)
     // Wait for name to update (poll should trigger immediately)
     await waitForOutletName(outletNum, expectedName, 5000)
     editingOutletName.value = null
@@ -582,25 +634,25 @@ function getValueByMapping(mapping) {
             <div>
               <p class="text-sm text-gray-500 dark:text-dracula-cyan">Voltage</p>
               <p class="text-xl font-semibold text-gray-900 dark:text-dracula-yellow">
-                {{ pduSummary?.voltage > 0 ? pduSummary.voltage.toFixed(1) : '-' }} V
+                {{ pduSummary?.hasVoltage ? pduSummary.voltage.toFixed(1) : '-' }} V
               </p>
             </div>
             <div>
               <p class="text-sm text-gray-500 dark:text-dracula-cyan">Total Current</p>
               <p class="text-xl font-semibold text-gray-900 dark:text-dracula-yellow">
-                {{ pduSummary?.totalCurrent > 0 ? pduSummary.totalCurrent.toFixed(2) : '-' }} A
+                {{ pduSummary?.hasCurrent ? pduSummary.totalCurrent.toFixed(2) : '-' }} A
               </p>
             </div>
             <div>
               <p class="text-sm text-gray-500 dark:text-dracula-cyan">Power</p>
               <p class="text-xl font-semibold text-gray-900 dark:text-dracula-yellow">
-                {{ pduSummary?.power > 0 ? pduSummary.power.toFixed(1) : '-' }} W
+                {{ pduSummary?.hasPower ? pduSummary.power.toFixed(1) : '-' }} W
               </p>
             </div>
             <div>
               <p class="text-sm text-gray-500 dark:text-dracula-cyan">Total Energy</p>
               <p class="text-xl font-semibold text-gray-900 dark:text-dracula-yellow">
-                {{ pduSummary?.totalEnergy > 0 ? pduSummary.totalEnergy.toFixed(3) : '-' }} kWh
+                {{ pduSummary?.hasEnergy ? pduSummary.totalEnergy.toFixed(3) : '-' }} kWh
               </p>
             </div>
           </div>
