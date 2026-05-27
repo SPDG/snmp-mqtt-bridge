@@ -522,6 +522,10 @@ select {
   background: var(--ui-success);
 }
 
+.dark .bg-green-500.text-white {
+  color: #06140c;
+}
+
 .dark .bg-gray-400 {
   background: #596673;
 }
