@@ -1,8 +1,8 @@
 # SNMP-MQTT Bridge
 
-[![Build](https://github.com/twopoint71/snmp-mqtt-bridge/actions/workflows/build.yml/badge.svg)](https://github.com/twopoint71/snmp-mqtt-bridge/actions/workflows/build.yml)
-[![Release](https://img.shields.io/github/v/release/twopoint71/snmp-mqtt-bridge)](https://github.com/twopoint71/snmp-mqtt-bridge/releases)
-[![License](https://img.shields.io/github/license/twopoint71/snmp-mqtt-bridge)](LICENSE)
+[![Build](https://github.com/SPDG/snmp-mqtt-bridge/actions/workflows/build.yml/badge.svg)](https://github.com/SPDG/snmp-mqtt-bridge/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/SPDG/snmp-mqtt-bridge)](https://github.com/SPDG/snmp-mqtt-bridge/releases)
+[![License](https://img.shields.io/github/license/SPDG/snmp-mqtt-bridge)](LICENSE)
 
 A lightweight Go application that bridges SNMP-enabled power devices (UPS, ATS, PDU) to Home Assistant via MQTT with automatic device discovery.
 
@@ -40,7 +40,7 @@ Additional profiles can be added via YAML configuration files.
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/twopoint71/snmp-mqtt-bridge.git
+   git clone https://github.com/SPDG/snmp-mqtt-bridge.git
    cd snmp-mqtt-bridge
    ```
 
