@@ -26,6 +26,7 @@ const form = ref({
   ip_address: '',
   port: 161,
   community: 'public',
+  write_community: '',
   snmp_version: 'v2c',
   profile_id: '',
   poll_interval: 0,
@@ -42,6 +43,10 @@ const isATS = computed(() => {
 
 const isPDU = computed(() => {
   return profile.value?.category === 'pdu'
+})
+
+const isAtenPDU = computed(() => {
+  return isPDU.value && (device.value?.profile_id?.startsWith('aten') || profile.value?.manufacturer === 'ATEN')
 })
 
 function toNumber(value) {
@@ -126,7 +131,7 @@ const outlets = computed(() => {
       delete pendingOutletStates.value[i]
     }
 
-    const isOn = stateVal === 'On' || stateVal === 1
+    const isOn = stateVal === 'On' || stateVal === 1 || stateVal === 2
     result.push({
       number: i,
       name,
@@ -277,7 +282,7 @@ async function toggleOutlet(outlet) {
       timestamp: Date.now()
     }
     // Wait briefly for poll to confirm the change
-    await waitForOutletState(outlet.number, expectedState, 3000)
+    await waitForOutletState(outlet.number, expectedState, 10000)
   } catch (e) {
     // Clear pending state on error
     delete pendingOutletStates.value[outlet.number]
@@ -293,7 +298,8 @@ async function waitForOutletState(outletNum, expectedState, timeoutMs) {
   while (Date.now() - startTime < timeoutMs) {
     await new Promise(r => setTimeout(r, 300))
     const currentState = state.value?.values?.[`Outlet ${outletNum} State`]
-    if (currentState === expectedState || currentState === (expectedState === 'On' ? 1 : 0)) {
+    const numericExpectedState = expectedState === 'On' ? 2 : 1
+    if (currentState === expectedState || currentState === numericExpectedState) {
       // State confirmed - clear pending state
       delete pendingOutletStates.value[outletNum]
       return true
@@ -321,10 +327,26 @@ function startEditOutletName(outlet) {
   newOutletName.value = outlet.name
 }
 
+function validateOutletName(name) {
+  if (!name) return 'Outlet name cannot be empty'
+
+  if (isAtenPDU.value && !/^[A-Za-z0-9_ ]{1,48}$/.test(name)) {
+    return 'ATEN outlet names can use only letters, numbers, spaces, and underscores, up to 48 characters.'
+  }
+
+  return null
+}
+
 async function saveOutletName() {
   if (!editingOutletName.value || !newOutletName.value.trim()) return
   const outletNum = editingOutletName.value
   const expectedName = newOutletName.value.trim()
+  const validationError = validateOutletName(expectedName)
+  if (validationError) {
+    alert(validationError)
+    return
+  }
+
   outletLoading.value[outletNum] = true
   try {
     await api.setOutletName(device.value.id, outletNum, expectedName)
@@ -364,6 +386,7 @@ function openEditModal() {
     ip_address: device.value.ip_address,
     port: device.value.port,
     community: device.value.community,
+    write_community: device.value.write_community || '',
     snmp_version: device.value.snmp_version,
     profile_id: device.value.profile_id || '',
     poll_interval: device.value.poll_interval || 0,
@@ -607,8 +630,10 @@ function getValueByMapping(mapping) {
                 <template v-if="editingOutletName === outlet.number">
                   <input v-model="newOutletName"
                          class="input w-full text-sm"
+                         :maxlength="isAtenPDU ? 48 : undefined"
                          @keyup.enter="saveOutletName"
                          @keyup.escape="cancelEditOutletName" />
+                  <p v-if="isAtenPDU" class="text-xs text-gray-500 dark:text-dracula-comment mt-1">ATEN: letters, numbers, spaces, underscores, max 48 characters.</p>
                   <div class="flex gap-2 mt-1">
                     <button @click="saveOutletName" class="text-green-600 dark:text-dracula-green hover:text-green-800 text-xs">Save</button>
                     <button @click="cancelEditOutletName" class="text-gray-600 dark:text-dracula-fg hover:text-gray-800 text-xs">Cancel</button>
@@ -804,6 +829,11 @@ function getValueByMapping(mapping) {
               <label class="label">{{ form.snmp_version === 'v3' ? 'Username' : 'Community' }}</label>
               <input v-model="form.community" class="input" :placeholder="form.snmp_version === 'v3' ? 'snmpuser' : 'public'" />
               <p v-if="form.snmp_version === 'v3'" class="text-xs text-gray-500 mt-1">noAuthNoPriv mode</p>
+            </div>
+            <div v-if="form.snmp_version !== 'v3'">
+              <label class="label">Write Community (optional)</label>
+              <input v-model="form.write_community" class="input" placeholder="private" />
+              <p class="text-xs text-gray-500 mt-1">Used for SNMP SET commands (outlet control, rename). Leave empty to use read community.</p>
             </div>
             <div>
               <label class="label">SNMP Version</label>

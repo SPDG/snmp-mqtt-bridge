@@ -246,6 +246,21 @@ type SetOutletNameRequest struct {
 	Name   string `json:"name" binding:"required"`
 }
 
+func validateAtenOutletName(name string) error {
+	if name == "" || len(name) > 48 {
+		return fmt.Errorf("ATEN outlet name must be 1-48 characters")
+	}
+
+	for _, ch := range name {
+		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == ' ' || ch == '_' {
+			continue
+		}
+		return fmt.Errorf("ATEN outlet name may contain only letters, numbers, spaces, and underscores")
+	}
+
+	return nil
+}
+
 // SetOutletName sets the name of a PDU outlet
 func (h *CommandHandler) SetOutletName(c *gin.Context) {
 	deviceID := c.Param("id")
@@ -257,6 +272,11 @@ func (h *CommandHandler) SetOutletName(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
+	req.Name = strings.TrimSpace(req.Name)
+	if req.Name == "" {
+		RespondBadRequest(c, "Outlet name cannot be empty")
+		return
+	}
 
 	// Look up device to get its profile
 	device, err := h.deviceService.GetByID(ctx, deviceID)
@@ -275,6 +295,10 @@ func (h *CommandHandler) SetOutletName(c *gin.Context) {
 		nameOID = fmt.Sprintf(".1.3.6.1.4.1.17420.1.2.9.%d.14.1.0", req.Outlet)
 		value = fmt.Sprintf("%s,0,0,0,0", req.Name)
 	} else if strings.HasPrefix(device.ProfileID, "aten") {
+		if err := validateAtenOutletName(req.Name); err != nil {
+			RespondBadRequest(c, err.Error())
+			return
+		}
 		// ATEN PE series outlet name table.
 		nameOID = fmt.Sprintf(".1.3.6.1.4.1.21317.1.3.2.2.2.2.10.1.2.%d", req.Outlet)
 		value = req.Name
