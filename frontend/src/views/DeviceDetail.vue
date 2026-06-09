@@ -49,6 +49,29 @@ const isAtenPDU = computed(() => {
   return isPDU.value && (device.value?.profile_id?.startsWith('aten') || profile.value?.manufacturer === 'ATEN')
 })
 
+const isEnergeniePDU = computed(() => {
+  return isPDU.value && (device.value?.profile_id?.startsWith('energenie') || profile.value?.manufacturer === 'Energenie')
+})
+
+function isExpectedOutletState(currentState, expectedState) {
+  if (typeof currentState === 'string' && currentState.toLowerCase() === expectedState.toLowerCase()) {
+    return true
+  }
+
+  if (isAtenPDU.value) {
+    const numericExpectedState = expectedState === 'On' ? 2 : 1
+    return currentState === numericExpectedState || currentState === String(numericExpectedState)
+  }
+
+  if (isEnergeniePDU.value) {
+    const numericExpectedState = expectedState === 'On' ? 1 : 0
+    return currentState === numericExpectedState || currentState === String(numericExpectedState)
+  }
+
+  const numericExpectedState = expectedState === 'On' ? 1 : 2
+  return currentState === numericExpectedState || currentState === String(numericExpectedState)
+}
+
 function toNumber(value) {
   if (value === null || value === undefined || value === '') return null
   const parsed = parseFloat(value)
@@ -131,7 +154,7 @@ const outlets = computed(() => {
       delete pendingOutletStates.value[i]
     }
 
-    const isOn = stateVal === 'On' || stateVal === 1 || stateVal === 2
+    const isOn = isExpectedOutletState(stateVal, 'On')
     result.push({
       number: i,
       name,
@@ -298,8 +321,7 @@ async function waitForOutletState(outletNum, expectedState, timeoutMs) {
   while (Date.now() - startTime < timeoutMs) {
     await new Promise(r => setTimeout(r, 300))
     const currentState = state.value?.values?.[`Outlet ${outletNum} State`]
-    const numericExpectedState = expectedState === 'On' ? 2 : 1
-    if (currentState === expectedState || currentState === numericExpectedState) {
+    if (isExpectedOutletState(currentState, expectedState)) {
       // State confirmed - clear pending state
       delete pendingOutletStates.value[outletNum]
       return true
