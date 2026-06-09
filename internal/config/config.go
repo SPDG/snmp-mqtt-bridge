@@ -94,6 +94,7 @@ func setDefaults(v *viper.Viper) {
 	// Server defaults
 	v.SetDefault("server.host", "0.0.0.0")
 	v.SetDefault("server.port", 8080)
+	v.SetDefault("server.ingress_path", "")
 
 	// Database defaults
 	v.SetDefault("database.driver", "sqlite")

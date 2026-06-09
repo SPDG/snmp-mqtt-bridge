@@ -2,6 +2,19 @@ package config
 
 import "testing"
 
+func TestLoadMapsServerIngressPathEnv(t *testing.T) {
+	t.Setenv("SNMP_BRIDGE_SERVER_INGRESS_PATH", "/api/hassio_ingress/test")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Server.IngressPath != "/api/hassio_ingress/test" {
+		t.Fatalf("Server.IngressPath = %q, want %q", cfg.Server.IngressPath, "/api/hassio_ingress/test")
+	}
+}
+
 func TestDatabaseConfigGetDSN(t *testing.T) {
 	tests := []struct {
 		name string
