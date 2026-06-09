@@ -1,11 +1,14 @@
 package mqtt
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
 	"snmp-mqtt-bridge/internal/domain"
 	"snmp-mqtt-bridge/internal/service"
+
+	"github.com/gosnmp/gosnmp"
 )
 
 func TestPublisher_RegisterUnregisterDevice(t *testing.T) {
@@ -221,5 +224,153 @@ func TestConvertToBinarySensorValue(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("convertToBinarySensorValue(%v, %q) = %q, want %q", tt.val, tt.deviceClass, got, tt.want)
 		}
+	}
+}
+
+type mockSnmpClient struct {
+	connectErr error
+	getPacket  *gosnmp.SnmpPacket
+	getErr     error
+	setPacket  *gosnmp.SnmpPacket
+	setErr     error
+	calledSet  []gosnmp.SnmpPDU
+	calledGet  []string
+	closed     bool
+}
+
+func (m *mockSnmpClient) Connect() error {
+	return m.connectErr
+}
+
+func (m *mockSnmpClient) Get(oids []string) (*gosnmp.SnmpPacket, error) {
+	m.calledGet = oids
+	return m.getPacket, m.getErr
+}
+
+func (m *mockSnmpClient) Set(pdus []gosnmp.SnmpPDU) (*gosnmp.SnmpPacket, error) {
+	m.calledSet = pdus
+	return m.setPacket, m.setErr
+}
+
+func (m *mockSnmpClient) Close() error {
+	m.closed = true
+	return nil
+}
+
+func TestPublisher_HandleCommand_Success(t *testing.T) {
+	mockMqtt := &mockMqttClient{connected: true}
+	client := &Client{
+		client:      mockMqtt,
+		connected:   true,
+		topicPrefix: "snmp-bridge",
+		handlers:    make(map[string]CommandHandler),
+	}
+	discovery := NewDiscovery(client, "homeassistant", "snmp-bridge")
+
+	profile := &domain.Profile{
+		ID: "profile1",
+		OIDMappings: []domain.OIDMapping{
+			{Name: "Outlet 1 State", OID: ".1.2.3.3", HAComponent: domain.HAComponentSwitch, Writable: true},
+		},
+	}
+	profileRepo := &mockProfileRepo{
+		profiles: map[string]*domain.Profile{
+			"profile1": profile,
+		},
+	}
+
+	pub := NewPublisher(client, discovery, nil, profileRepo)
+
+	device := &domain.Device{
+		ID:        "dev1",
+		Name:      "Main UPS",
+		ProfileID: "profile1",
+	}
+	_ = pub.RegisterDevice(device)
+
+	// Inject mock SNMP client
+	mockSnmp := &mockSnmpClient{
+		setPacket: &gosnmp.SnmpPacket{
+			Error: gosnmp.NoError,
+		},
+	}
+	pub.createSNMPClientFunc = func(d *domain.Device, community string) snmpClient {
+		return mockSnmp
+	}
+
+	// Call handleCommand (payload "ON" -> should send SNMP integer 1)
+	pub.handleCommand("dev1", "outlet_1_state", []byte("ON"))
+
+	if len(mockSnmp.calledSet) != 1 {
+		t.Fatalf("Expected 1 SNMP SET call, got %d", len(mockSnmp.calledSet))
+	}
+	pdu := mockSnmp.calledSet[0]
+	if pdu.Name != ".1.2.3.3" {
+		t.Errorf("Expected OID .1.2.3.3, got %s", pdu.Name)
+	}
+	if pdu.Type != gosnmp.Integer || pdu.Value.(int) != 1 {
+		t.Errorf("Expected type Integer and value 1, got type %v and value %v", pdu.Type, pdu.Value)
+	}
+	if !mockSnmp.closed {
+		t.Error("Expected SNMP client to be closed")
+	}
+}
+
+func TestPublisher_HandleCommand_SNMPError(t *testing.T) {
+	mockMqtt := &mockMqttClient{connected: true}
+	client := &Client{
+		client:      mockMqtt,
+		connected:   true,
+		topicPrefix: "snmp-bridge",
+		handlers:    make(map[string]CommandHandler),
+	}
+	discovery := NewDiscovery(client, "homeassistant", "snmp-bridge")
+
+	profile := &domain.Profile{
+		ID: "profile1",
+		OIDMappings: []domain.OIDMapping{
+			{Name: "Outlet 1 State", OID: ".1.2.3.3", HAComponent: domain.HAComponentSwitch, Writable: true},
+		},
+	}
+	profileRepo := &mockProfileRepo{
+		profiles: map[string]*domain.Profile{
+			"profile1": profile,
+		},
+	}
+
+	pub := NewPublisher(client, discovery, nil, profileRepo)
+
+	device := &domain.Device{
+		ID:        "dev1",
+		Name:      "Main UPS",
+		ProfileID: "profile1",
+	}
+	_ = pub.RegisterDevice(device)
+
+	// 1. Connection error
+	mockSnmp := &mockSnmpClient{
+		connectErr: fmt.Errorf("connection timeout"),
+	}
+	pub.createSNMPClientFunc = func(d *domain.Device, community string) snmpClient {
+		return mockSnmp
+	}
+	pub.handleCommand("dev1", "outlet_1_state", []byte("ON")) // Should log and return gracefully
+	if len(mockSnmp.calledSet) != 0 {
+		t.Error("Expected no SNMP SET call on connection failure")
+	}
+
+	// 2. SNMP Packet Error (e.g., NoSuchName)
+	mockSnmpPacketErr := &mockSnmpClient{
+		setPacket: &gosnmp.SnmpPacket{
+			Error:      gosnmp.NoSuchName,
+			ErrorIndex: 1,
+		},
+	}
+	pub.createSNMPClientFunc = func(d *domain.Device, community string) snmpClient {
+		return mockSnmpPacketErr
+	}
+	pub.handleCommand("dev1", "outlet_1_state", []byte("ON")) // Should log and return gracefully
+	if len(mockSnmpPacketErr.calledSet) != 1 {
+		t.Fatalf("Expected 1 SNMP SET call, got %d", len(mockSnmpPacketErr.calledSet))
 	}
 }

@@ -21,16 +21,36 @@ type deviceInfo struct {
 	profile *domain.Profile
 }
 
+// snmpClient is a mockable interface for gosnmp.GoSNMP operations
+type snmpClient interface {
+	Connect() error
+	Get(oids []string) (*gosnmp.SnmpPacket, error)
+	Set(pdus []gosnmp.SnmpPDU) (*gosnmp.SnmpPacket, error)
+	Close() error
+}
+
+type goSNMPWrapper struct {
+	*gosnmp.GoSNMP
+}
+
+func (w *goSNMPWrapper) Close() error {
+	if w.GoSNMP.Conn != nil {
+		return w.GoSNMP.Conn.Close()
+	}
+	return nil
+}
+
 // Publisher handles publishing device states to MQTT
 type Publisher struct {
-	client      *Client
-	discovery   *Discovery
-	poller      *service.PollerService
-	profileRepo repository.ProfileRepository
-	devices     map[string]*deviceInfo
-	devicesMu   sync.RWMutex
-	ctx         context.Context
-	cancel      context.CancelFunc
+	client               *Client
+	discovery            *Discovery
+	poller               *service.PollerService
+	profileRepo          repository.ProfileRepository
+	devices              map[string]*deviceInfo
+	devicesMu            sync.RWMutex
+	ctx                  context.Context
+	cancel               context.CancelFunc
+	createSNMPClientFunc func(device *domain.Device, community string) snmpClient
 }
 
 // NewPublisher creates a new MQTT publisher
@@ -42,7 +62,7 @@ func NewPublisher(
 ) *Publisher {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	return &Publisher{
+	p := &Publisher{
 		client:      client,
 		discovery:   discovery,
 		poller:      poller,
@@ -51,14 +71,19 @@ func NewPublisher(
 		ctx:         ctx,
 		cancel:      cancel,
 	}
+	p.createSNMPClientFunc = func(device *domain.Device, community string) snmpClient {
+		return &goSNMPWrapper{p.createSNMPClientWithCommunity(device, community)}
+	}
+	return p
 }
 
 // Start starts the publisher
 func (p *Publisher) Start() error {
 	// Subscribe to poller events
-	eventChan := p.poller.Subscribe()
-
-	go p.handleEvents(eventChan)
+	if p.poller != nil {
+		eventChan := p.poller.Subscribe()
+		go p.handleEvents(eventChan)
+	}
 
 	// Publish discovery for the bridge itself
 	if p.client.IsConnected() {
@@ -293,7 +318,9 @@ func (p *Publisher) handleCommand(deviceID, entityID string, payload []byte) {
 	log.Printf("SNMP SET successful for %s/%s: %s -> %v", deviceID, entityID, payloadStr, snmpValue)
 
 	// Trigger immediate poll to confirm state change
-	p.poller.TriggerPoll(deviceID)
+	if p.poller != nil {
+		p.poller.TriggerPoll(deviceID)
+	}
 }
 
 // convertPayloadToSNMPValue converts MQTT payload to appropriate SNMP value
@@ -401,12 +428,12 @@ func (p *Publisher) convertCompositePayloadToSNMPValue(device *domain.Device, pa
 
 // readSNMPValue reads a single OID value from the device
 func (p *Publisher) readSNMPValue(device *domain.Device, oid string) (interface{}, error) {
-	client := p.createSNMPClient(device)
+	client := p.createSNMPClientFunc(device, device.Community)
 
 	if err := client.Connect(); err != nil {
 		return nil, fmt.Errorf("failed to connect: %w", err)
 	}
-	defer client.Conn.Close()
+	defer client.Close()
 
 	result, err := client.Get([]string{oid})
 	if err != nil {
@@ -414,7 +441,7 @@ func (p *Publisher) readSNMPValue(device *domain.Device, oid string) (interface{
 	}
 
 	if len(result.Variables) == 0 {
-		return nil, fmt.Errorf("no result for OID %s", oid)
+		return nil, fmt.Errorf("no value returned")
 	}
 
 	variable := result.Variables[0]
@@ -430,12 +457,16 @@ func (p *Publisher) readSNMPValue(device *domain.Device, oid string) (interface{
 
 // sendSNMPSet sends an SNMP SET command to the device
 func (p *Publisher) sendSNMPSet(device *domain.Device, oid string, value interface{}) error {
-	client := p.createSNMPClientForWrite(device)
+	community := device.Community
+	if device.WriteCommunity != "" {
+		community = device.WriteCommunity
+	}
+	client := p.createSNMPClientFunc(device, community)
 
 	if err := client.Connect(); err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
-	defer client.Conn.Close()
+	defer client.Close()
 
 	// Determine PDU type based on value type
 	var pdu gosnmp.SnmpPDU
@@ -461,20 +492,6 @@ func (p *Publisher) sendSNMPSet(device *domain.Device, oid string, value interfa
 	}
 
 	return nil
-}
-
-// createSNMPClient creates an SNMP client for the device (for reading)
-func (p *Publisher) createSNMPClient(device *domain.Device) *gosnmp.GoSNMP {
-	return p.createSNMPClientWithCommunity(device, device.Community)
-}
-
-// createSNMPClientForWrite creates an SNMP client for SET operations, using write community if available
-func (p *Publisher) createSNMPClientForWrite(device *domain.Device) *gosnmp.GoSNMP {
-	community := device.Community
-	if device.WriteCommunity != "" {
-		community = device.WriteCommunity
-	}
-	return p.createSNMPClientWithCommunity(device, community)
 }
 
 // createSNMPClientWithCommunity creates an SNMP client with specified community
