@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -93,17 +94,12 @@ func (r *TrapReceiver) Stop() {
 func (r *TrapReceiver) handleTrap(packet *gosnmp.SnmpPacket, addr *net.UDPAddr) {
 	log.Printf("Received trap from %s", addr.IP.String())
 
-	// Find device by IP
+	// Find device by source IP. Devices may be configured by hostname, so resolve
+	// hostnames before deciding the trap is unrelated.
 	var deviceID *string
 	devices, err := r.deviceRepo.GetAll(context.Background())
 	if err == nil {
-		for _, d := range devices {
-			if d.IPAddress == addr.IP.String() {
-				id := d.ID
-				deviceID = &id
-				break
-			}
-		}
+		deviceID = findDeviceIDByTrapSource(devices, addr.IP, lookupHost)
 	}
 
 	// Parse trap OID
@@ -146,15 +142,71 @@ func (r *TrapReceiver) handleTrap(packet *gosnmp.SnmpPacket, addr *net.UDPAddr) 
 
 	// Trigger immediate poll for the device if known
 	if deviceID != nil && r.poller != nil {
-		// The poller will update state on next poll cycle
-		// For immediate update, we could add a TriggerPoll method to PollerService
-		log.Printf("Trap received for device %s, will be reflected in next poll", *deviceID)
+		r.poller.TriggerPoll(*deviceID)
+		log.Printf("Trap received for device %s, triggered immediate poll", *deviceID)
 	}
 
 	// Notify handlers
 	if r.onTrap != nil {
 		r.onTrap(trapLog)
 	}
+}
+
+type hostLookupFunc func(string) ([]string, error)
+
+func lookupHost(host string) ([]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	return net.DefaultResolver.LookupHost(ctx, host)
+}
+
+func findDeviceIDByTrapSource(devices []domain.Device, sourceIP net.IP, lookupHost hostLookupFunc) *string {
+	if sourceIP == nil {
+		return nil
+	}
+
+	incomingIP := sourceIP.String()
+	for _, device := range devices {
+		if matchDeviceAddress(device.IPAddress, incomingIP, lookupHost) {
+			id := device.ID
+			return &id
+		}
+	}
+
+	return nil
+}
+
+func matchDeviceAddress(deviceAddress, incomingIP string, lookupHost hostLookupFunc) bool {
+	deviceAddress = strings.TrimSpace(deviceAddress)
+	incomingIP = strings.TrimSpace(incomingIP)
+	if deviceAddress == "" || incomingIP == "" {
+		return false
+	}
+	if deviceAddress == incomingIP {
+		return true
+	}
+
+	incoming := net.ParseIP(incomingIP)
+	if incoming == nil {
+		return false
+	}
+
+	if configuredIP := net.ParseIP(deviceAddress); configuredIP != nil {
+		return configuredIP.Equal(incoming)
+	}
+
+	resolvedIPs, err := lookupHost(deviceAddress)
+	if err != nil {
+		return false
+	}
+	for _, resolvedIP := range resolvedIPs {
+		if parsed := net.ParseIP(resolvedIP); parsed != nil && parsed.Equal(incoming) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (r *TrapReceiver) parseVariable(variable gosnmp.SnmpPDU) interface{} {
