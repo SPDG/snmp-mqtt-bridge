@@ -452,9 +452,12 @@ func (p *Publisher) sendSNMPSet(device *domain.Device, oid string, value interfa
 		return fmt.Errorf("unsupported value type: %T", value)
 	}
 
-	_, err := client.Set([]gosnmp.SnmpPDU{pdu})
+	packet, err := client.Set([]gosnmp.SnmpPDU{pdu})
 	if err != nil {
 		return fmt.Errorf("SNMP SET failed: %w", err)
+	}
+	if packet != nil && packet.Error != gosnmp.NoError {
+		return fmt.Errorf("SNMP SET rejected: %s at index %d", packet.Error, packet.ErrorIndex)
 	}
 
 	return nil
