@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 
 	"snmp-mqtt-bridge/internal/domain"
@@ -13,13 +14,21 @@ import (
 type DeviceHandler struct {
 	deviceService *service.DeviceService
 	pollerService *service.PollerService
+	publisher     DevicePublisher
+}
+
+// DevicePublisher keeps MQTT discovery and command subscriptions in sync with device CRUD.
+type DevicePublisher interface {
+	RegisterDevice(device *domain.Device) error
+	UnregisterDevice(deviceID string) error
 }
 
 // NewDeviceHandler creates a new device handler
-func NewDeviceHandler(deviceService *service.DeviceService, pollerService *service.PollerService) *DeviceHandler {
+func NewDeviceHandler(deviceService *service.DeviceService, pollerService *service.PollerService, publisher DevicePublisher) *DeviceHandler {
 	return &DeviceHandler{
 		deviceService: deviceService,
 		pollerService: pollerService,
+		publisher:     publisher,
 	}
 }
 
@@ -65,6 +74,7 @@ func (h *DeviceHandler) Create(c *gin.Context) {
 	if h.pollerService != nil && device.Enabled {
 		h.pollerService.AddDevice(device)
 	}
+	h.registerDevice(device)
 
 	RespondCreated(c, device)
 }
@@ -79,6 +89,12 @@ func (h *DeviceHandler) Update(c *gin.Context) {
 		return
 	}
 
+	previousDevice, err := h.deviceService.GetByID(c.Request.Context(), id)
+	if err != nil {
+		RespondNotFound(c, "Device not found")
+		return
+	}
+
 	device, err := h.deviceService.Update(c.Request.Context(), id, &req)
 	if err != nil {
 		RespondNotFound(c, "Device not found")
@@ -89,6 +105,7 @@ func (h *DeviceHandler) Update(c *gin.Context) {
 	if h.pollerService != nil {
 		h.pollerService.UpdateDevice(device)
 	}
+	h.refreshDeviceRegistration(previousDevice, device)
 
 	RespondOK(c, device)
 }
@@ -106,8 +123,37 @@ func (h *DeviceHandler) Delete(c *gin.Context) {
 	if h.pollerService != nil {
 		h.pollerService.RemoveDevice(id)
 	}
+	h.unregisterDevice(id)
 
 	c.JSON(http.StatusNoContent, nil)
+}
+
+func (h *DeviceHandler) registerDevice(device *domain.Device) {
+	if h.publisher == nil || !device.Enabled {
+		return
+	}
+	if err := h.publisher.RegisterDevice(device); err != nil {
+		log.Printf("Failed to register device %s with MQTT: %v", device.ID, err)
+	}
+}
+
+func (h *DeviceHandler) refreshDeviceRegistration(previousDevice, device *domain.Device) {
+	if h.publisher == nil {
+		return
+	}
+	if previousDevice != nil && previousDevice.Enabled {
+		h.unregisterDevice(previousDevice.ID)
+	}
+	h.registerDevice(device)
+}
+
+func (h *DeviceHandler) unregisterDevice(deviceID string) {
+	if h.publisher == nil {
+		return
+	}
+	if err := h.publisher.UnregisterDevice(deviceID); err != nil {
+		log.Printf("Failed to unregister device %s from MQTT: %v", deviceID, err)
+	}
 }
 
 // TestConnection tests SNMP connection to an existing device

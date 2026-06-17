@@ -35,6 +35,7 @@ type Services struct {
 	Poller     *service.PollerService
 	SNMP       *service.SNMPService
 	MQTTClient *mqtt.Client
+	Publisher  *mqtt.Publisher
 }
 
 // NewServer creates a new HTTP server
@@ -65,7 +66,7 @@ func (s *Server) setupRoutes(frontendFS embed.FS) {
 	api := s.router.Group("/api")
 	{
 		// Devices
-		deviceHandler := handler.NewDeviceHandler(s.services.Device, s.services.Poller)
+		deviceHandler := handler.NewDeviceHandler(s.services.Device, s.services.Poller, s.services.Publisher)
 		devices := api.Group("/devices")
 		{
 			devices.GET("", deviceHandler.List)
