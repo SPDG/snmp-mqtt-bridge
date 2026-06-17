@@ -88,6 +88,7 @@ func main() {
 		Poller:     pollerService,
 		SNMP:       snmpService,
 		MQTTClient: mqttClient,
+		Publisher:  publisher,
 	}
 
 	server := api.NewServer(cfg, services, embedfs.FrontendFS)
