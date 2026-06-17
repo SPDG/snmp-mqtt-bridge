@@ -104,6 +104,9 @@ func (s *Server) setupRoutes(frontendFS embed.FS) {
 		if s.services.MQTTClient != nil {
 			settingHandler.SetMQTTClient(s.services.MQTTClient)
 		}
+		if s.services.Publisher != nil {
+			settingHandler.SetMQTTDiscoveryRefresher(s.services.Publisher)
+		}
 		settings := api.Group("/settings")
 		{
 			settings.GET("", settingHandler.List)

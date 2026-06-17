@@ -60,13 +60,16 @@ func main() {
 
 	// Create MQTT client
 	mqttClient := mqtt.NewClient(&cfg.MQTT)
+	discovery := mqtt.NewDiscovery(mqttClient, cfg.MQTT.DiscoveryPrefix, cfg.MQTT.TopicPrefix)
+	publisher := mqtt.NewPublisher(mqttClient, discovery, pollerService, profileRepo)
+	mqttClient.AddOnConnectHandler(func() {
+		if err := publisher.RefreshDiscovery(); err != nil {
+			log.Printf("Warning: Failed to refresh MQTT discovery after connect: %v", err)
+		}
+	})
 	if err := mqttClient.Connect(); err != nil {
 		log.Printf("Warning: Failed to connect to MQTT broker: %v", err)
 	}
-
-	// Create MQTT discovery and publisher
-	discovery := mqtt.NewDiscovery(mqttClient, cfg.MQTT.DiscoveryPrefix, cfg.MQTT.TopicPrefix)
-	publisher := mqtt.NewPublisher(mqttClient, discovery, pollerService, profileRepo)
 
 	// Create trap receiver
 	trapReceiver := worker.NewTrapReceiver(cfg.SNMP.TrapPort, deviceRepo, trapRepo, pollerService)

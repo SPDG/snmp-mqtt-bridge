@@ -1,10 +1,12 @@
 package mqtt
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
 
+	"snmp-mqtt-bridge/internal/config"
 	"snmp-mqtt-bridge/internal/domain"
 	"snmp-mqtt-bridge/internal/service"
 
@@ -81,6 +83,77 @@ func TestPublisher_RegisterUnregisterDevice(t *testing.T) {
 
 	if exists {
 		t.Error("Expected device to be unregistered")
+	}
+}
+
+func TestPublisher_RefreshDiscoveryUsesCurrentMQTTConfig(t *testing.T) {
+	mockMqtt := &mockMqttClient{connected: true}
+	client := &Client{
+		cfg: &config.MQTTConfig{
+			TopicPrefix:     "new-prefix",
+			DiscoveryPrefix: "new-homeassistant",
+		},
+		client:      mockMqtt,
+		connected:   true,
+		topicPrefix: "new-prefix",
+		handlers:    make(map[string]CommandHandler),
+	}
+	discovery := NewDiscovery(client, "old-homeassistant", "old-prefix")
+
+	profile := &domain.Profile{
+		ID:           "profile1",
+		Manufacturer: "APC",
+		Model:        "ATS",
+		OIDMappings: []domain.OIDMapping{
+			{Name: "Preferred Source", OID: ".1.2.3.1", HAComponent: domain.HAComponentSelect, Writable: true},
+		},
+	}
+
+	profileRepo := &mockProfileRepo{
+		profiles: map[string]*domain.Profile{
+			"profile1": profile,
+		},
+	}
+
+	pub := NewPublisher(client, discovery, nil, profileRepo)
+	device := &domain.Device{
+		ID:        "dev1",
+		Name:      "Main ATS",
+		ProfileID: "profile1",
+		Enabled:   true,
+	}
+
+	if err := pub.RegisterDevice(device); err != nil {
+		t.Fatalf("RegisterDevice failed: %v", err)
+	}
+	mockMqtt.published = nil
+
+	if err := pub.RefreshDiscovery(); err != nil {
+		t.Fatalf("RefreshDiscovery failed: %v", err)
+	}
+
+	if len(mockMqtt.published) != 2 {
+		t.Fatalf("expected bridge and device discovery publishes, got %d", len(mockMqtt.published))
+	}
+	if mockMqtt.published[0].topic != "new-homeassistant/sensor/snmp_bridge/status/config" {
+		t.Fatalf("expected bridge discovery on new prefix, got %q", mockMqtt.published[0].topic)
+	}
+	if mockMqtt.published[1].topic != "new-homeassistant/select/dev1/preferred_source/config" {
+		t.Fatalf("expected device discovery on new prefix, got %q", mockMqtt.published[1].topic)
+	}
+
+	var payload DiscoveryConfig
+	if err := json.Unmarshal(mockMqtt.published[1].payload.([]byte), &payload); err != nil {
+		t.Fatalf("failed to unmarshal discovery payload: %v", err)
+	}
+	if payload.StateTopic != "new-prefix/dev1/preferred_source/state" {
+		t.Fatalf("expected state topic to use new prefix, got %q", payload.StateTopic)
+	}
+	if payload.CommandTopic != "new-prefix/dev1/preferred_source/set" {
+		t.Fatalf("expected command topic to use new prefix, got %q", payload.CommandTopic)
+	}
+	if payload.AvailabilityTopic != "new-prefix/bridge/status" {
+		t.Fatalf("expected availability topic to use new prefix, got %q", payload.AvailabilityTopic)
 	}
 }
 

@@ -19,10 +19,16 @@ type MQTTReconnector interface {
 	GetConfig() *config.MQTTConfig
 }
 
+// MQTTDiscoveryRefresher republishes MQTT discovery after reconnect/config changes.
+type MQTTDiscoveryRefresher interface {
+	RefreshDiscovery() error
+}
+
 // SettingHandler handles setting-related HTTP requests
 type SettingHandler struct {
 	settingService *service.SettingService
 	mqttClient     MQTTReconnector
+	mqttDiscovery  MQTTDiscoveryRefresher
 	appCfg         *config.Config
 }
 
@@ -37,6 +43,11 @@ func NewSettingHandler(settingService *service.SettingService, appCfg *config.Co
 // SetMQTTClient sets the MQTT client for reconnection support
 func (h *SettingHandler) SetMQTTClient(client *mqtt.Client) {
 	h.mqttClient = client
+}
+
+// SetMQTTDiscoveryRefresher sets the MQTT discovery refresher used after reconnect.
+func (h *SettingHandler) SetMQTTDiscoveryRefresher(refresher MQTTDiscoveryRefresher) {
+	h.mqttDiscovery = refresher
 }
 
 // List returns all settings
@@ -167,10 +178,21 @@ func (h *SettingHandler) ReconnectMQTT(c *gin.Context) {
 		return
 	}
 
+	if h.mqttDiscovery != nil {
+		if err := h.mqttDiscovery.RefreshDiscovery(); err != nil {
+			RespondOK(c, gin.H{
+				"success":   false,
+				"connected": h.mqttClient.IsConnected(),
+				"message":   "MQTT reconnected but discovery refresh failed: " + err.Error(),
+			})
+			return
+		}
+	}
+
 	RespondOK(c, gin.H{
 		"success":   true,
 		"connected": h.mqttClient.IsConnected(),
-		"message":   "MQTT reconnected successfully",
+		"message":   "MQTT reconnected and discovery refreshed successfully",
 	})
 }
 
@@ -220,7 +242,7 @@ func (h *SettingHandler) TestMQTTConnection(c *gin.Context) {
 	}
 
 	testClient := mqtt.NewClient(cfg)
-	err := testClient.Connect()
+	err := testClient.ConnectOnce()
 
 	if err != nil {
 		RespondOK(c, gin.H{
