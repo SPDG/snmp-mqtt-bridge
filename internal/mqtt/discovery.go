@@ -4,34 +4,35 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	"snmp-mqtt-bridge/internal/domain"
 )
 
 // DiscoveryConfig represents Home Assistant MQTT discovery payload
 type DiscoveryConfig struct {
-	Name              string            `json:"name"`
-	UniqueID          string            `json:"unique_id"`
-	ObjectID          string            `json:"object_id,omitempty"`
-	StateTopic        string            `json:"state_topic,omitempty"`
-	CommandTopic      string            `json:"command_topic,omitempty"`
-	AvailabilityTopic string            `json:"availability_topic,omitempty"`
-	PayloadAvailable  string            `json:"payload_available,omitempty"`
-	PayloadNotAvailable string          `json:"payload_not_available,omitempty"`
-	Device            *DiscoveryDevice  `json:"device,omitempty"`
-	DeviceClass       string            `json:"device_class,omitempty"`
-	StateClass        string            `json:"state_class,omitempty"`
-	UnitOfMeasurement string            `json:"unit_of_measurement,omitempty"`
-	Icon              string            `json:"icon,omitempty"`
-	EntityCategory    string            `json:"entity_category,omitempty"`
-	ValueTemplate     string            `json:"value_template,omitempty"`
-	PayloadOn         string            `json:"payload_on,omitempty"`
-	PayloadOff        string            `json:"payload_off,omitempty"`
-	Options           []string          `json:"options,omitempty"`
-	Min               float64           `json:"min,omitempty"`
-	Max               float64           `json:"max,omitempty"`
-	Step              float64           `json:"step,omitempty"`
-	Extra             map[string]interface{} `json:"-"` // For any extra fields
+	Name                string                 `json:"name"`
+	UniqueID            string                 `json:"unique_id"`
+	ObjectID            string                 `json:"object_id,omitempty"`
+	StateTopic          string                 `json:"state_topic,omitempty"`
+	CommandTopic        string                 `json:"command_topic,omitempty"`
+	AvailabilityTopic   string                 `json:"availability_topic,omitempty"`
+	PayloadAvailable    string                 `json:"payload_available,omitempty"`
+	PayloadNotAvailable string                 `json:"payload_not_available,omitempty"`
+	Device              *DiscoveryDevice       `json:"device,omitempty"`
+	DeviceClass         string                 `json:"device_class,omitempty"`
+	StateClass          string                 `json:"state_class,omitempty"`
+	UnitOfMeasurement   string                 `json:"unit_of_measurement,omitempty"`
+	Icon                string                 `json:"icon,omitempty"`
+	EntityCategory      string                 `json:"entity_category,omitempty"`
+	ValueTemplate       string                 `json:"value_template,omitempty"`
+	PayloadOn           string                 `json:"payload_on,omitempty"`
+	PayloadOff          string                 `json:"payload_off,omitempty"`
+	Options             []string               `json:"options,omitempty"`
+	Min                 float64                `json:"min,omitempty"`
+	Max                 float64                `json:"max,omitempty"`
+	Step                float64                `json:"step,omitempty"`
+	Extra               map[string]interface{} `json:"-"` // For any extra fields
 }
 
 // DiscoveryDevice represents device information in discovery payload
@@ -49,6 +50,7 @@ type Discovery struct {
 	client          *Client
 	discoveryPrefix string
 	topicPrefix     string
+	mu              sync.RWMutex
 }
 
 // NewDiscovery creates a new discovery manager
@@ -60,8 +62,22 @@ func NewDiscovery(client *Client, discoveryPrefix, topicPrefix string) *Discover
 	}
 }
 
+// UpdatePrefixes updates MQTT discovery and state topic prefixes after MQTT settings change.
+func (d *Discovery) UpdatePrefixes(discoveryPrefix, topicPrefix string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	d.discoveryPrefix = discoveryPrefix
+	d.topicPrefix = topicPrefix
+}
+
 // PublishBridgeDiscovery publishes discovery config for the bridge itself
 func (d *Discovery) PublishBridgeDiscovery() error {
+	d.mu.RLock()
+	discoveryPrefix := d.discoveryPrefix
+	topicPrefix := d.topicPrefix
+	d.mu.RUnlock()
+
 	haDevice := &DiscoveryDevice{
 		Identifiers:  []string{"snmp_mqtt_bridge"},
 		Name:         "SNMP-MQTT Bridge",
@@ -70,22 +86,22 @@ func (d *Discovery) PublishBridgeDiscovery() error {
 		SwVersion:    "1.0.0",
 	}
 
-	availabilityTopic := fmt.Sprintf("%s/bridge/status", d.topicPrefix)
+	availabilityTopic := fmt.Sprintf("%s/bridge/status", topicPrefix)
 
 	config := &DiscoveryConfig{
-		Name:              "Bridge Status",
-		UniqueID:          "snmp_bridge_status",
-		ObjectID:          "snmp_bridge_status",
-		Device:            haDevice,
-		StateTopic:        availabilityTopic,
-		AvailabilityTopic: availabilityTopic,
-		PayloadAvailable:  "online",
+		Name:                "Bridge Status",
+		UniqueID:            "snmp_bridge_status",
+		ObjectID:            "snmp_bridge_status",
+		Device:              haDevice,
+		StateTopic:          availabilityTopic,
+		AvailabilityTopic:   availabilityTopic,
+		PayloadAvailable:    "online",
 		PayloadNotAvailable: "offline",
-		EntityCategory:    "diagnostic",
-		Icon:              "mdi:lan-connect",
+		EntityCategory:      "diagnostic",
+		Icon:                "mdi:lan-connect",
 	}
 
-	topic := fmt.Sprintf("%s/sensor/snmp_bridge/status/config", d.discoveryPrefix)
+	topic := fmt.Sprintf("%s/sensor/snmp_bridge/status/config", discoveryPrefix)
 	return d.client.Publish(topic, config, true)
 }
 
@@ -94,6 +110,10 @@ func (d *Discovery) PublishDevice(device *domain.Device, profile *domain.Profile
 	if profile == nil {
 		return nil
 	}
+	d.mu.RLock()
+	discoveryPrefix := d.discoveryPrefix
+	topicPrefix := d.topicPrefix
+	d.mu.RUnlock()
 
 	haDevice := &DiscoveryDevice{
 		Identifiers:  []string{fmt.Sprintf("snmp_bridge_%s", device.ID)},
@@ -103,7 +123,7 @@ func (d *Discovery) PublishDevice(device *domain.Device, profile *domain.Profile
 		ViaDevice:    "snmp_mqtt_bridge",
 	}
 
-	availabilityTopic := fmt.Sprintf("%s/bridge/status", d.topicPrefix)
+	availabilityTopic := fmt.Sprintf("%s/bridge/status", topicPrefix)
 
 	// Create device prefix for entity IDs using name + short ID for uniqueness
 	// e.g., "snmp_mqtt_pdu_001_a7a66242" ensures unique entity IDs even with duplicate names
@@ -120,12 +140,12 @@ func (d *Discovery) PublishDevice(device *domain.Device, profile *domain.Profile
 		objectID := fmt.Sprintf("%s_%s", devicePrefix, entityID)
 
 		config := &DiscoveryConfig{
-			Name:              mapping.Name,
-			UniqueID:          uniqueID,
-			ObjectID:          objectID,
-			Device:            haDevice,
-			AvailabilityTopic: availabilityTopic,
-			PayloadAvailable:  "online",
+			Name:                mapping.Name,
+			UniqueID:            uniqueID,
+			ObjectID:            objectID,
+			Device:              haDevice,
+			AvailabilityTopic:   availabilityTopic,
+			PayloadAvailable:    "online",
 			PayloadNotAvailable: "offline",
 		}
 
@@ -154,11 +174,11 @@ func (d *Discovery) PublishDevice(device *domain.Device, profile *domain.Profile
 		}
 
 		// Build topics based on component type
-		stateTopic := fmt.Sprintf("%s/%s/%s/state", d.topicPrefix, device.ID, entityID)
+		stateTopic := fmt.Sprintf("%s/%s/%s/state", topicPrefix, device.ID, entityID)
 		config.StateTopic = stateTopic
 
 		if mapping.Writable {
-			config.CommandTopic = fmt.Sprintf("%s/%s/%s/set", d.topicPrefix, device.ID, entityID)
+			config.CommandTopic = fmt.Sprintf("%s/%s/%s/set", topicPrefix, device.ID, entityID)
 		}
 
 		// Component-specific configuration
@@ -205,7 +225,7 @@ func (d *Discovery) PublishDevice(device *domain.Device, profile *domain.Profile
 
 		// Publish discovery config
 		topic := fmt.Sprintf("%s/%s/%s/%s/config",
-			d.discoveryPrefix,
+			discoveryPrefix,
 			componentToString(mapping.HAComponent),
 			device.ID,
 			entityID,
@@ -221,6 +241,11 @@ func (d *Discovery) PublishDevice(device *domain.Device, profile *domain.Profile
 
 // UpdateSelectOptions updates the options for a select entity
 func (d *Discovery) UpdateSelectOptions(device *domain.Device, profile *domain.Profile, mapping domain.OIDMapping, options []string) error {
+	d.mu.RLock()
+	discoveryPrefix := d.discoveryPrefix
+	topicPrefix := d.topicPrefix
+	d.mu.RUnlock()
+
 	entityID := sanitizeEntityID(mapping.Name)
 	uniqueID := fmt.Sprintf("snmp_bridge_%s_%s", device.ID, entityID)
 	shortID := device.ID
@@ -239,19 +264,19 @@ func (d *Discovery) UpdateSelectOptions(device *domain.Device, profile *domain.P
 	}
 
 	config := &DiscoveryConfig{
-		Name:     mapping.Name,
-		UniqueID: uniqueID,
-		ObjectID: objectID,
-		Device:   haDevice,
-		AvailabilityTopic:   fmt.Sprintf("%s/bridge/status", d.topicPrefix),
+		Name:                mapping.Name,
+		UniqueID:            uniqueID,
+		ObjectID:            objectID,
+		Device:              haDevice,
+		AvailabilityTopic:   fmt.Sprintf("%s/bridge/status", topicPrefix),
 		PayloadAvailable:    "online",
 		PayloadNotAvailable: "offline",
-		StateTopic:          fmt.Sprintf("%s/%s/%s/state", d.topicPrefix, device.ID, entityID),
+		StateTopic:          fmt.Sprintf("%s/%s/%s/state", topicPrefix, device.ID, entityID),
 		Options:             options,
 	}
 
 	if mapping.Writable {
-		config.CommandTopic = fmt.Sprintf("%s/%s/%s/set", d.topicPrefix, device.ID, entityID)
+		config.CommandTopic = fmt.Sprintf("%s/%s/%s/set", topicPrefix, device.ID, entityID)
 	}
 
 	if mapping.Icon != "" {
@@ -259,7 +284,7 @@ func (d *Discovery) UpdateSelectOptions(device *domain.Device, profile *domain.P
 	}
 
 	topic := fmt.Sprintf("%s/%s/%s/%s/config",
-		d.discoveryPrefix,
+		discoveryPrefix,
 		componentToString(mapping.HAComponent),
 		device.ID,
 		entityID,
@@ -273,12 +298,15 @@ func (d *Discovery) RemoveDevice(deviceID string, profile *domain.Profile) error
 	if profile == nil {
 		return nil
 	}
+	d.mu.RLock()
+	discoveryPrefix := d.discoveryPrefix
+	d.mu.RUnlock()
 
 	for _, mapping := range profile.OIDMappings {
 		entityID := sanitizeEntityID(mapping.Name)
 
 		topic := fmt.Sprintf("%s/%s/%s/%s/config",
-			d.discoveryPrefix,
+			discoveryPrefix,
 			componentToString(mapping.HAComponent),
 			deviceID,
 			entityID,

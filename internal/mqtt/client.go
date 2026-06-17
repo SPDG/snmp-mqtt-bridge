@@ -18,13 +18,14 @@ type CommandHandler func(deviceID, entityID string, payload []byte)
 
 // Client wraps the MQTT client with convenience methods
 type Client struct {
-	cfg           *config.MQTTConfig
-	client        mqtt.Client
-	connected     bool
-	mu            sync.RWMutex
-	topicPrefix   string
-	handlers      map[string]CommandHandler
-	handlersMu    sync.RWMutex
+	cfg               *config.MQTTConfig
+	client            mqtt.Client
+	connected         bool
+	mu                sync.RWMutex
+	topicPrefix       string
+	handlers          map[string]CommandHandler
+	handlersMu        sync.RWMutex
+	onConnectHandlers []func()
 }
 
 // NewClient creates a new MQTT client
@@ -38,6 +39,15 @@ func NewClient(cfg *config.MQTTConfig) *Client {
 
 // Connect establishes connection to the MQTT broker
 func (c *Client) Connect() error {
+	return c.connect(true)
+}
+
+// ConnectOnce establishes a single MQTT connection attempt without background initial retry.
+func (c *Client) ConnectOnce() error {
+	return c.connect(false)
+}
+
+func (c *Client) connect(connectRetry bool) error {
 	broker := fmt.Sprintf("tcp://%s:%d", c.cfg.Broker, c.cfg.Port)
 
 	opts := mqtt.NewClientOptions()
@@ -51,7 +61,7 @@ func (c *Client) Connect() error {
 	}
 
 	opts.SetAutoReconnect(true)
-	opts.SetConnectRetry(false) // Don't block on initial connect
+	opts.SetConnectRetry(connectRetry)
 	opts.SetConnectRetryInterval(5 * time.Second)
 	opts.SetMaxReconnectInterval(5 * time.Minute)
 
@@ -66,6 +76,7 @@ func (c *Client) Connect() error {
 
 		// Resubscribe to command topics
 		c.resubscribe()
+		c.runOnConnectHandlers()
 	})
 
 	opts.SetConnectionLostHandler(func(client mqtt.Client, err error) {
@@ -86,11 +97,40 @@ func (c *Client) Connect() error {
 	c.client = mqtt.NewClient(opts)
 
 	token := c.client.Connect()
-	if token.WaitTimeout(10*time.Second) && token.Error() != nil {
+	if !token.WaitTimeout(10 * time.Second) {
+		if connectRetry {
+			return fmt.Errorf("timed out connecting to MQTT broker; retrying in background")
+		}
+		c.client.Disconnect(0)
+		return fmt.Errorf("timed out connecting to MQTT broker")
+	}
+	if token.Error() != nil {
 		return fmt.Errorf("failed to connect to MQTT broker: %w", token.Error())
 	}
 
 	return nil
+}
+
+// AddOnConnectHandler registers a callback that runs after every successful MQTT connection.
+func (c *Client) AddOnConnectHandler(handler func()) {
+	c.mu.Lock()
+	c.onConnectHandlers = append(c.onConnectHandlers, handler)
+	connected := c.connected
+	c.mu.Unlock()
+
+	if connected {
+		go handler()
+	}
+}
+
+func (c *Client) runOnConnectHandlers() {
+	c.mu.RLock()
+	handlers := append([]func(){}, c.onConnectHandlers...)
+	c.mu.RUnlock()
+
+	for _, handler := range handlers {
+		handler()
+	}
 }
 
 // Disconnect closes the MQTT connection

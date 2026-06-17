@@ -96,6 +96,38 @@ func (p *Publisher) Start() error {
 	return nil
 }
 
+// RefreshDiscovery republishes bridge and registered device discovery using the current MQTT config.
+func (p *Publisher) RefreshDiscovery() error {
+	if !p.client.IsConnected() {
+		return fmt.Errorf("not connected to MQTT broker")
+	}
+
+	cfg := p.client.GetConfig()
+	p.discovery.UpdatePrefixes(cfg.DiscoveryPrefix, cfg.TopicPrefix)
+
+	if err := p.discovery.PublishBridgeDiscovery(); err != nil {
+		return fmt.Errorf("failed to publish bridge discovery: %w", err)
+	}
+
+	p.devicesMu.RLock()
+	devices := make([]*deviceInfo, 0, len(p.devices))
+	for _, info := range p.devices {
+		devices = append(devices, info)
+	}
+	p.devicesMu.RUnlock()
+
+	for _, info := range devices {
+		if info == nil || info.profile == nil {
+			continue
+		}
+		if err := p.discovery.PublishDevice(info.device, info.profile); err != nil {
+			return fmt.Errorf("failed to publish discovery for device %s: %w", info.device.ID, err)
+		}
+	}
+
+	return nil
+}
+
 // Stop stops the publisher
 func (p *Publisher) Stop() {
 	p.cancel()
@@ -217,7 +249,7 @@ func (p *Publisher) publishState(event service.StateUpdateEvent) {
 			// For select entities showing "Selected Source" or "Preferred Source",
 			// replace generic names with actual source names
 			if mapping.HAComponent == domain.HAComponentSelect ||
-			   (mapping.Name == "Selected Source" || mapping.Name == "Preferred Source") {
+				(mapping.Name == "Selected Source" || mapping.Name == "Preferred Source") {
 				if hasSourceA && hasSourceB {
 					strVal := fmt.Sprintf("%v", publishValue)
 					if strVal == "Source A" || strVal == "1" {
@@ -551,8 +583,8 @@ func convertToSwitchValue(value interface{}) string {
 
 	// Map "on" values to ON
 	onValues := map[string]bool{
-		"on":  true,
-		"1":   true,
+		"on":   true,
+		"1":    true,
 		"true": true,
 	}
 
