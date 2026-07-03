@@ -164,7 +164,7 @@ func (d *Discovery) PublishDevice(device *domain.Device, profile *domain.Profile
 			config.StateClass = mapping.StateClass
 		}
 		if mapping.Unit != "" {
-			config.UnitOfMeasurement = mapping.Unit
+			config.UnitOfMeasurement = normalizeDiscoveryUnit(mapping.Unit, mapping.DeviceClass)
 		}
 		if mapping.Icon != "" {
 			config.Icon = mapping.Icon
@@ -364,4 +364,11 @@ func sanitizeEntityID(name string) string {
 	}
 
 	return sb.String()
+}
+
+func normalizeDiscoveryUnit(unit, deviceClass string) string {
+	if deviceClass == "temperature" && unit == "C" {
+		return "°C"
+	}
+	return unit
 }

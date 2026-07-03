@@ -131,9 +131,16 @@ func TestDiscovery_PublishDevice(t *testing.T) {
 			{
 				OID:         ".1.3.6.1.4.1.21317.1.3.2.2.2.2.10.1.2.1",
 				Name:        "Outlet 1 Current",
-				HAComponent: domain.HAComponentBinarySensor, // Just for test variety
+				HAComponent: domain.HAComponentSensor,
 				DeviceClass: "current",
 				Unit:        "A",
+			},
+			{
+				OID:         ".1.3.6.1.4.1.21317.1.3.2.1.0",
+				Name:        "Temperature",
+				HAComponent: domain.HAComponentSensor,
+				DeviceClass: "temperature",
+				Unit:        "C",
 			},
 		},
 	}
@@ -143,28 +150,42 @@ func TestDiscovery_PublishDevice(t *testing.T) {
 		t.Fatalf("PublishDevice failed: %v", err)
 	}
 
-	// Should publish 2 entity configs
-	if len(mockMqtt.published) != 2 {
-		t.Fatalf("Expected 2 published messages, got %d", len(mockMqtt.published))
+	// Should publish 3 entity configs
+	if len(mockMqtt.published) != 3 {
+		t.Fatalf("Expected 3 published messages, got %d", len(mockMqtt.published))
 	}
 
 	// Verify switch config
 	var switchConfig map[string]interface{}
-	var sensorConfig map[string]interface{}
+	var currentConfig map[string]interface{}
+	var temperatureConfig map[string]interface{}
 
 	for _, pub := range mockMqtt.published {
 		if strings.Contains(pub.topic, "/switch/") {
 			err = json.Unmarshal(pub.payload.([]byte), &switchConfig)
-		} else if strings.Contains(pub.topic, "/binary_sensor/") {
-			err = json.Unmarshal(pub.payload.([]byte), &sensorConfig)
+		} else if strings.Contains(pub.topic, "/sensor/") {
+			var config map[string]interface{}
+			err = json.Unmarshal(pub.payload.([]byte), &config)
+			if err != nil {
+				t.Fatalf("Failed to parse sensor discovery config: %v", err)
+			}
+			switch config["name"] {
+			case "Outlet 1 Current":
+				currentConfig = config
+			case "Temperature":
+				temperatureConfig = config
+			}
 		}
 	}
 
 	if switchConfig == nil {
 		t.Fatal("Failed to find switch discovery config in published messages")
 	}
-	if sensorConfig == nil {
-		t.Fatal("Failed to find binary_sensor discovery config in published messages")
+	if currentConfig == nil {
+		t.Fatal("Failed to find current discovery config in published messages")
+	}
+	if temperatureConfig == nil {
+		t.Fatal("Failed to find temperature discovery config in published messages")
 	}
 
 	if switchConfig["name"] != "Outlet 1 State" {
@@ -174,10 +195,16 @@ func TestDiscovery_PublishDevice(t *testing.T) {
 		t.Errorf("Expected command topic for switch, got %q", switchConfig["command_topic"])
 	}
 
-	if sensorConfig["device_class"] != "current" {
-		t.Errorf("Expected sensor device class 'current', got %q", sensorConfig["device_class"])
+	if currentConfig["device_class"] != "current" {
+		t.Errorf("Expected current device class 'current', got %q", currentConfig["device_class"])
 	}
-	if sensorConfig["unit_of_measurement"] != "A" {
-		t.Errorf("Expected sensor unit 'A', got %q", sensorConfig["unit_of_measurement"])
+	if currentConfig["unit_of_measurement"] != "A" {
+		t.Errorf("Expected current unit 'A', got %q", currentConfig["unit_of_measurement"])
+	}
+	if temperatureConfig["device_class"] != "temperature" {
+		t.Errorf("Expected temperature device class 'temperature', got %q", temperatureConfig["device_class"])
+	}
+	if temperatureConfig["unit_of_measurement"] != "°C" {
+		t.Errorf("Expected temperature unit '°C', got %q", temperatureConfig["unit_of_measurement"])
 	}
 }
