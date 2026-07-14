@@ -2,11 +2,13 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useDeviceStore } from '../stores/devices'
+import { useUIStore } from '../stores/ui'
 import api from '../api'
 
 const route = useRoute()
 const router = useRouter()
 const deviceStore = useDeviceStore()
+const uiStore = useUIStore()
 
 const device = ref(null)
 const profile = ref(null)
@@ -260,6 +262,14 @@ async function testConnection() {
 
 async function switchToSource(source) {
   if (switching.value) return
+  const sourceName = source === 1 ? sourceAName.value : sourceBName.value
+  const confirmed = await uiStore.confirmAction({
+    title: `Switch to ${sourceName}?`,
+    message: `This will change the active input on ${device.value.name}. Connected equipment may briefly lose power.`,
+    confirmLabel: 'Switch source',
+  })
+  if (!confirmed) return
+
   switching.value = true
   try {
     await api.switchSource(device.value.id, source)
@@ -294,6 +304,17 @@ function cancelEditSourceName() {
 // PDU Outlet Functions
 async function toggleOutlet(outlet) {
   if (outletLoading.value[outlet.number]) return
+  const action = outlet.isOn ? 'Turn off' : 'Turn on'
+  const confirmed = await uiStore.confirmAction({
+    title: `${action} ${outlet.name}?`,
+    message: outlet.isOn
+      ? `Power will be removed from outlet ${outlet.number} on ${device.value.name}.`
+      : `Power will be enabled on outlet ${outlet.number} on ${device.value.name}.`,
+    confirmLabel: action,
+    tone: outlet.isOn ? 'danger' : 'warning',
+  })
+  if (!confirmed) return
+
   outletLoading.value[outlet.number] = true
   const expectedState = outlet.isOn ? 'Off' : 'On'
   try {
@@ -333,7 +354,13 @@ async function waitForOutletState(outletNum, expectedState, timeoutMs) {
 
 async function rebootOutlet(outlet) {
   if (outletLoading.value[outlet.number]) return
-  if (!confirm(`Reboot ${outlet.name}? This will turn off and then on the outlet.`)) return
+  const confirmed = await uiStore.confirmAction({
+    title: `Reboot ${outlet.name}?`,
+    message: `Outlet ${outlet.number} on ${device.value.name} will be turned off and then back on.`,
+    confirmLabel: 'Reboot outlet',
+    tone: 'danger',
+  })
+  if (!confirmed) return
   outletLoading.value[outlet.number] = true
   try {
     await api.rebootOutlet(device.value.id, outlet.number)

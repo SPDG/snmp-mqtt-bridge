@@ -2,9 +2,11 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { useDeviceStore } from './stores/devices'
+import { useUIStore } from './stores/ui'
 import { getBasePath } from './api'
 
 const deviceStore = useDeviceStore()
+const uiStore = useUIStore()
 const route = useRoute()
 const menuOpen = ref(false)
 const darkMode = ref(false)
@@ -56,6 +58,9 @@ function applyDarkMode() {
 }
 
 let ws = null
+let wsReconnectTimer = null
+let mqttStatusTimer = null
+let shuttingDown = false
 
 function connectWebSocket() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -89,8 +94,10 @@ function connectWebSocket() {
   }
 
   ws.onclose = () => {
-    console.log('WebSocket disconnected, reconnecting...')
-    setTimeout(connectWebSocket, 3000)
+    if (!shuttingDown) {
+      console.log('WebSocket disconnected, reconnecting...')
+      wsReconnectTimer = setTimeout(connectWebSocket, 3000)
+    }
   }
 
   ws.onerror = (error) => {
@@ -100,11 +107,17 @@ function connectWebSocket() {
 
 onMounted(() => {
   initDarkMode()
+  uiStore.initialize()
   deviceStore.fetchDevices()
   connectWebSocket()
+  uiStore.refreshMQTTStatus()
+  mqttStatusTimer = setInterval(() => uiStore.refreshMQTTStatus(), 10000)
 })
 
 onUnmounted(() => {
+  shuttingDown = true
+  clearTimeout(wsReconnectTimer)
+  clearInterval(mqttStatusTimer)
   if (ws) {
     ws.close()
   }
@@ -141,6 +154,30 @@ onUnmounted(() => {
         </div>
 
         <div class="app-top-actions">
+          <span
+            class="app-health-pill mqtt"
+            :class="uiStore.mqttStatus.loading ? '' : (uiStore.mqttStatus.connected ? 'ok' : 'bad')"
+            :title="uiStore.mqttStatus.broker ? `${uiStore.mqttStatus.broker}:${uiStore.mqttStatus.port}` : 'MQTT broker unavailable'"
+          >
+            <span class="app-health-dot"></span>
+            MQTT {{ uiStore.mqttStatus.loading ? 'checking' : (uiStore.mqttStatus.connected ? 'connected' : 'offline') }}
+          </span>
+
+          <button
+            type="button"
+            class="safe-mode-toggle"
+            :class="{ active: uiStore.safeMode }"
+            :aria-pressed="uiStore.safeMode"
+            title="Require confirmation before power switching"
+            @click="uiStore.toggleSafeMode"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3 5.5 5.7v5.8c0 4.1 2.7 7.8 6.5 9.2 3.8-1.4 6.5-5.1 6.5-9.2V5.7L12 3Zm0 2.2 4.5 1.9v4.4c0 3-1.8 5.8-4.5 7-2.7-1.2-4.5-4-4.5-7V7.1L12 5.2Zm-1 3v4.2l3.4 2 .9-1.5-2.5-1.5V8.2H11Z" />
+            </svg>
+            Safe mode
+            <span class="safe-mode-switch"><span></span></span>
+          </button>
+
           <span class="app-health-pill" :class="deviceStore.offlineCount === 0 ? 'ok' : 'bad'">
             <span class="app-health-dot"></span>
             {{ deviceStore.offlineCount === 0 ? 'Healthy' : `${deviceStore.offlineCount} offline` }}
@@ -180,6 +217,32 @@ onUnmounted(() => {
       <main class="app-content">
         <RouterView />
       </main>
+    </div>
+
+    <div
+      v-if="uiStore.confirmation"
+      class="confirm-backdrop"
+      role="presentation"
+      @click.self="uiStore.resolveConfirmation(false)"
+    >
+      <section class="confirm-dialog" role="alertdialog" aria-modal="true" :aria-labelledby="'confirm-title'">
+        <div class="confirm-icon" :class="uiStore.confirmation.tone">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 2 1 21h22L12 2Zm0 5.2L19.6 19H4.4L12 7.2ZM11 10v5h2v-5h-2Zm0 6.5v2h2v-2h-2Z" />
+          </svg>
+        </div>
+        <div>
+          <p class="confirm-eyebrow">Safe mode</p>
+          <h2 id="confirm-title">{{ uiStore.confirmation.title }}</h2>
+          <p>{{ uiStore.confirmation.message }}</p>
+        </div>
+        <div class="confirm-actions">
+          <button class="btn btn-secondary" @click="uiStore.resolveConfirmation(false)">Cancel</button>
+          <button class="btn btn-danger" @click="uiStore.resolveConfirmation(true)">
+            {{ uiStore.confirmation.confirmLabel }}
+          </button>
+        </div>
+      </section>
     </div>
   </div>
 </template>
