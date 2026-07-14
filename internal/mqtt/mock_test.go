@@ -12,7 +12,8 @@ import (
 )
 
 type mockToken struct {
-	err error
+	err      error
+	complete bool
 }
 
 func (t *mockToken) Wait() bool {
@@ -20,7 +21,7 @@ func (t *mockToken) Wait() bool {
 }
 
 func (t *mockToken) WaitTimeout(d time.Duration) bool {
-	return true
+	return t.complete
 }
 
 func (t *mockToken) Done() <-chan struct{} {
@@ -35,8 +36,9 @@ func (t *mockToken) Error() error {
 
 type mockMqttClient struct {
 	mqtt.Client
-	connected bool
-	published []struct {
+	connected    bool
+	publishToken mqtt.Token
+	published    []struct {
 		topic   string
 		qos     byte
 		retain  bool
@@ -54,7 +56,7 @@ func (m *mockMqttClient) IsConnected() bool {
 
 func (m *mockMqttClient) Connect() mqtt.Token {
 	m.connected = true
-	return &mockToken{}
+	return &mockToken{complete: true}
 }
 
 func (m *mockMqttClient) Disconnect(quiesce uint) {
@@ -68,7 +70,10 @@ func (m *mockMqttClient) Publish(topic string, qos byte, retained bool, payload 
 		retain  bool
 		payload interface{}
 	}{topic, qos, retained, payload})
-	return &mockToken{}
+	if m.publishToken != nil {
+		return m.publishToken
+	}
+	return &mockToken{complete: true}
 }
 
 func (m *mockMqttClient) Subscribe(topic string, qos byte, callback mqtt.MessageHandler) mqtt.Token {
@@ -76,11 +81,11 @@ func (m *mockMqttClient) Subscribe(topic string, qos byte, callback mqtt.Message
 		topic string
 		qos   byte
 	}{topic, qos})
-	return &mockToken{}
+	return &mockToken{complete: true}
 }
 
 func (m *mockMqttClient) Unsubscribe(topics ...string) mqtt.Token {
-	return &mockToken{}
+	return &mockToken{complete: true}
 }
 
 type mockProfileRepo struct {

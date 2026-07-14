@@ -9,8 +9,11 @@ function getApiBase() {
 
 async function request(method, path, data = null) {
   const API_BASE = getApiBase()
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 12000)
   const options = {
     method,
+    signal: controller.signal,
     headers: {
       'Content-Type': 'application/json',
     },
@@ -20,14 +23,24 @@ async function request(method, path, data = null) {
     options.body = JSON.stringify(data)
   }
 
-  const response = await fetch(`${API_BASE}${path}`, options)
-  const json = await response.json()
+  try {
+    const response = await fetch(`${API_BASE}${path}`, options)
+    const body = await response.text()
+    const json = body ? JSON.parse(body) : { data: null }
 
-  if (!response.ok) {
-    throw new Error(json.error || 'Request failed')
+    if (!response.ok) {
+      throw new Error(json.error || 'Request failed')
+    }
+
+    return json.data
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('Request timed out')
+    }
+    throw error
+  } finally {
+    clearTimeout(timeout)
   }
-
-  return json.data
 }
 
 export const api = {

@@ -2,11 +2,43 @@ package mqtt
 
 import (
 	"encoding/json"
+	"net"
+	"strconv"
 	"testing"
 	"time"
 
+	"snmp-mqtt-bridge/internal/config"
 	"snmp-mqtt-bridge/internal/domain"
 )
+
+func TestClient_ConnectDoesNotBlockStartupWhenBrokerIsDown(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve local port: %v", err)
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
+	listener.Close()
+
+	c := NewClient(&config.MQTTConfig{
+		Broker:      "127.0.0.1",
+		Port:        port,
+		ClientID:    "startup-timeout-test-" + strconv.Itoa(port),
+		TopicPrefix: "snmp-bridge",
+	})
+	defer c.Disconnect()
+
+	started := time.Now()
+	err = c.Connect()
+	if err == nil {
+		t.Fatal("expected connection error for unavailable broker")
+	}
+	if elapsed := time.Since(started); elapsed > 4*time.Second {
+		t.Fatalf("startup blocked for %s", elapsed)
+	}
+	if c.IsConnected() {
+		t.Fatal("client should remain disconnected")
+	}
+}
 
 func TestClient_Publish(t *testing.T) {
 	mockMqtt := &mockMqttClient{connected: true}
@@ -34,6 +66,45 @@ func TestClient_Publish(t *testing.T) {
 	}
 	if !pub.retain {
 		t.Error("Expected retain to be true")
+	}
+}
+
+func TestClient_PublishReturnsOnTokenTimeout(t *testing.T) {
+	mockMqtt := &mockMqttClient{
+		connected:    true,
+		publishToken: &mockToken{complete: false},
+	}
+	c := &Client{
+		client:      mockMqtt,
+		connected:   true,
+		topicPrefix: "snmp-bridge",
+	}
+
+	// The mock token reports a timeout immediately, so the client must return an error.
+	err := c.Publish("test/topic", "hello", true)
+	if err == nil {
+		t.Fatal("expected publish timeout error")
+	}
+}
+
+func TestClient_SubscribeCommandsQueuesHandlerWhileDisconnected(t *testing.T) {
+	mockMqtt := &mockMqttClient{connected: false}
+	c := &Client{
+		client:      mockMqtt,
+		connected:   false,
+		topicPrefix: "snmp-bridge",
+		handlers:    make(map[string]CommandHandler),
+	}
+
+	err := c.SubscribeCommands("dev1", func(string, string, []byte) {})
+	if err != nil {
+		t.Fatalf("SubscribeCommands should queue while disconnected: %v", err)
+	}
+	if len(mockMqtt.subscribed) != 0 {
+		t.Fatalf("expected no broker subscription, got %d", len(mockMqtt.subscribed))
+	}
+	if _, exists := c.handlers["dev1"]; !exists {
+		t.Fatal("expected command handler to be retained for reconnect")
 	}
 }
 
