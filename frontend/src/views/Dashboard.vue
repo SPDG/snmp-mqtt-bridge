@@ -141,8 +141,8 @@ function buildDeviceView(device) {
 
 const deviceViews = computed(() => deviceStore.devices.map(buildDeviceView))
 const onlinePercent = computed(() => {
-  if (!deviceStore.devices.length) return 0
-  return Math.round((deviceStore.onlineCount / deviceStore.devices.length) * 100)
+  if (!deviceStore.enabledCount) return 0
+  return Math.round((deviceStore.onlineCount / deviceStore.enabledCount) * 100)
 })
 const managedOutlets = computed(() => deviceViews.value.flatMap(device => device.outlets))
 const outletsOn = computed(() => managedOutlets.value.filter(outlet => outlet.on).length)
@@ -177,7 +177,7 @@ function formatLastPoll(value) {
           <strong>{{ onlinePercent }}%</strong>
         </div>
         <div class="availability-track"><span :style="{ width: `${onlinePercent}%` }"></span></div>
-        <p>{{ deviceStore.onlineCount }} online <span>/ {{ deviceStore.devices.length }} configured</span></p>
+        <p>{{ deviceStore.onlineCount }} online <span>/ {{ deviceStore.enabledCount }} enabled</span></p>
       </article>
 
       <article class="overview-card">

@@ -132,6 +132,19 @@ select {
   border: 1px solid color-mix(in srgb, var(--ui-accent) 48%, transparent);
 }
 
+.app-brand-mark img {
+  width: 30px;
+  height: 30px;
+  display: block;
+  border-radius: 7px;
+}
+
+.app-nav-item span svg {
+  width: 17px;
+  height: 17px;
+  fill: currentColor;
+}
+
 .app-nav {
   display: grid;
   gap: 6px;
