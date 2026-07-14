@@ -4,6 +4,7 @@ import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { useDeviceStore } from './stores/devices'
 import { useUIStore } from './stores/ui'
 import { getBasePath } from './api'
+import appLogo from './assets/logo.svg'
 
 const deviceStore = useDeviceStore()
 const uiStore = useUIStore()
@@ -11,11 +12,11 @@ const route = useRoute()
 const menuOpen = ref(false)
 const darkMode = ref(false)
 const navItems = [
-  { to: '/', label: 'Dashboard', short: 'DB' },
-  { to: '/devices', label: 'Devices', short: 'DV' },
-  { to: '/profiles', label: 'Profiles', short: 'PR' },
-  { to: '/traps', label: 'Trap Logs', short: 'TL' },
-  { to: '/settings', label: 'Settings', short: 'ST' },
+  { to: '/', label: 'Dashboard', icon: 'dashboard' },
+  { to: '/devices', label: 'Devices', icon: 'devices' },
+  { to: '/profiles', label: 'Profiles', icon: 'profiles' },
+  { to: '/traps', label: 'Trap Logs', icon: 'traps' },
+  { to: '/settings', label: 'Settings', icon: 'settings' },
 ]
 
 const pageTitle = computed(() => {
@@ -29,7 +30,7 @@ const pageTitle = computed(() => {
 const statusSummary = computed(() => {
   const total = deviceStore.devices.length
   if (!total) return 'No devices configured'
-  return `${deviceStore.onlineCount}/${total} devices online`
+  return `${deviceStore.onlineCount}/${deviceStore.enabledCount} enabled devices online`
 })
 
 // Initialize dark mode from localStorage
@@ -128,7 +129,7 @@ onUnmounted(() => {
   <div class="app-shell">
     <aside class="app-rail" aria-label="Navigation">
       <RouterLink to="/" class="app-brand" title="Dashboard">
-        <span class="app-brand-mark">B</span>
+        <span class="app-brand-mark"><img :src="appLogo" alt="" /></span>
         <strong>SNMP Bridge</strong>
       </RouterLink>
 
@@ -140,7 +141,15 @@ onUnmounted(() => {
           class="app-nav-item"
           active-class="active"
         >
-          <span>{{ item.short }}</span>
+          <span>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path v-if="item.icon === 'dashboard'" d="M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6Z" />
+              <path v-else-if="item.icon === 'devices'" d="M5 3h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm0 2v4h14V5H5Zm0 8h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2Zm0 2v4h14v-4H5Zm11-9h2v2h-2V6Zm0 10h2v2h-2v-2Z" />
+              <path v-else-if="item.icon === 'profiles'" d="M4 6h7v2H4V6Zm11 0h5v2h-5V6Zm-2-2h2v6h-2V4ZM4 16h4v2H4v-2Zm8 0h8v2h-8v-2Zm-4-2h2v6H8v-6Z" />
+              <path v-else-if="item.icon === 'traps'" d="M12 2a4 4 0 0 1 4 4v1.2c0 .9.3 1.8.8 2.5l1.7 2.4c.9 1.2 0 2.9-1.5 2.9H7c-1.5 0-2.4-1.7-1.5-2.9l1.7-2.4c.5-.7.8-1.6.8-2.5V6a4 4 0 0 1 4-4Zm0 2a2 2 0 0 0-2 2v1.2c0 1.3-.4 2.6-1.2 3.7L7.3 13h9.4l-1.5-2.1A6.4 6.4 0 0 1 14 7.2V6a2 2 0 0 0-2-2Zm-2 13h4a2 2 0 1 1-4 0Z" />
+              <path v-else d="m13 2 .6 2.1c.5.2 1 .4 1.5.7l2-.9 2 2-1 2c.4.5.6 1 .8 1.5L21 10v4l-2.1.6c-.2.5-.4 1-.7 1.5l.9 2-2 2-2-.9c-.5.3-1 .5-1.5.7L13 22H9l-.6-2.1c-.5-.2-1-.4-1.5-.7l-2 .9-2-2 .9-2c-.3-.5-.5-1-.7-1.5L1 14v-4l2.1-.6c.2-.5.4-1 .7-1.5l-.9-2 2-2 2 .9c.5-.3 1-.5 1.5-.7L9 2h4Zm-2.5 2-.4 1.7-.8.3c-.6.2-1.1.5-1.6.9l-.7.5-1.6-.7-.7.7L5.4 9l-.5.7c-.4.5-.7 1-.9 1.6l-.3.8-1.7.4v1l1.7.4.3.8c.2.6.5 1.1.9 1.6l.5.7-.7 1.6.7.7 1.6-.7.7.5c.5.4 1 .7 1.6.9l.8.3.4 1.7h1l.4-1.7.8-.3c.6-.2 1.1-.5 1.6-.9l.7-.5 1.6.7.7-.7-.7-1.6.5-.7c.4-.5.7-1 .9-1.6l.3-.8 1.7-.4v-1l-1.7-.4-.3-.8c-.2-.6-.5-1.1-.9-1.6l-.5-.7.7-1.6-.7-.7-1.6.7-.7-.5c-.5-.4-1-.7-1.6-.9l-.8-.3-.4-1.7h-1ZM11 9h2a3 3 0 1 1-2 0Zm1 2a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z" />
+            </svg>
+          </span>
           <strong>{{ item.label }}</strong>
         </RouterLink>
       </nav>

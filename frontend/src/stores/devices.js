@@ -9,11 +9,14 @@ export const useDeviceStore = defineStore('devices', () => {
   const error = ref(null)
 
   const onlineCount = computed(() => {
-    return Object.values(deviceStates.value).filter(s => s?.online).length
+    const enabledIDs = new Set(devices.value.filter(device => device.enabled).map(device => device.id))
+    return Object.values(deviceStates.value).filter(state => state?.online && enabledIDs.has(state.device_id)).length
   })
 
+  const enabledCount = computed(() => devices.value.filter(device => device.enabled).length)
+
   const offlineCount = computed(() => {
-    return devices.value.length - onlineCount.value
+    return enabledCount.value - onlineCount.value
   })
 
   async function fetchDevices() {
@@ -67,6 +70,7 @@ export const useDeviceStore = defineStore('devices', () => {
     loading,
     error,
     onlineCount,
+    enabledCount,
     offlineCount,
     fetchDevices,
     createDevice,
