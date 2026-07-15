@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.0.18] - 2026-07-15
+
+### Changed
+
+- Show both ATS sources with their names, voltages and statuses on the dashboard, highlighting the active source.
+
+### Fixed
+
+- Display the actual Home Assistant app version in Settings instead of a hardcoded value.
+
 ## [0.0.17] - 2026-07-15
 
 ### Fixed
