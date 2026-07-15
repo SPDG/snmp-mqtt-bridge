@@ -15,6 +15,23 @@ func TestLoadMapsServerIngressPathEnv(t *testing.T) {
 	}
 }
 
+func TestLoadMapsMQTTCredentialsFromEnv(t *testing.T) {
+	t.Setenv("SNMP_BRIDGE_MQTT_USERNAME", "addon-user")
+	t.Setenv("SNMP_BRIDGE_MQTT_PASSWORD", "addon-password")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.MQTT.Username != "addon-user" {
+		t.Fatalf("MQTT.Username = %q, want %q", cfg.MQTT.Username, "addon-user")
+	}
+	if cfg.MQTT.Password != "addon-password" {
+		t.Fatalf("MQTT.Password = %q, want %q", cfg.MQTT.Password, "addon-password")
+	}
+}
+
 func TestDatabaseConfigGetDSN(t *testing.T) {
 	tests := []struct {
 		name string
