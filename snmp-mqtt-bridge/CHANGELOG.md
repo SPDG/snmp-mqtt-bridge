@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.0.17] - 2026-07-15
+
 ### Fixed
 
 - Load MQTT username and password from Home Assistant app options during startup, so automatic reconnects authenticate correctly after an update or restart.
