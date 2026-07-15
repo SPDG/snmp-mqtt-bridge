@@ -9,6 +9,7 @@ const mqttStatus = ref({ connected: false, broker: '' })
 const reconnecting = ref(false)
 const testing = ref(false)
 const testResult = ref(null)
+const appVersion = __APP_VERSION__
 
 const formFields = [
   { key: 'mqtt.broker', label: 'MQTT Broker', type: 'text', placeholder: 'localhost' },
@@ -194,7 +195,7 @@ async function testMQTTConnection() {
       <dl class="space-y-2">
         <div class="flex justify-between">
           <dt class="text-gray-500">Version</dt>
-          <dd>1.0.0</dd>
+          <dd>{{ appVersion }}</dd>
         </div>
         <div class="flex justify-between">
           <dt class="text-gray-500">API</dt>
