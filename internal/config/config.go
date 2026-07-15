@@ -103,6 +103,8 @@ func setDefaults(v *viper.Viper) {
 	// MQTT defaults
 	v.SetDefault("mqtt.broker", "localhost")
 	v.SetDefault("mqtt.port", 1883)
+	v.SetDefault("mqtt.username", "")
+	v.SetDefault("mqtt.password", "")
 	v.SetDefault("mqtt.client_id", "snmp-mqtt-bridge")
 	v.SetDefault("mqtt.topic_prefix", "snmp-bridge")
 	v.SetDefault("mqtt.discovery", true)
