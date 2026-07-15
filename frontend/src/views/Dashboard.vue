@@ -104,6 +104,22 @@ function buildDeviceView(device) {
     : selectedSource === 2 || selectedSource === '2' || selectedSource === 'Source B' || selectedSource === sourceBName
       ? sourceBName
       : cleanText(selectedSource, 'Unknown')
+  const sources = [
+    {
+      id: 'A',
+      name: sourceAName,
+      voltage: formatNumber(firstNumber(values, ['Source A Voltage']), 1, 'V'),
+      status: cleanText(values['Source A Status'], 'Unknown'),
+      active: activeSource === sourceAName,
+    },
+    {
+      id: 'B',
+      name: sourceBName,
+      voltage: formatNumber(firstNumber(values, ['Source B Voltage']), 1, 'V'),
+      status: cleanText(values['Source B Status'], 'Unknown'),
+      active: activeSource === sourceBName,
+    },
+  ]
 
   let metrics = []
   if (category === 'pdu') {
@@ -132,6 +148,7 @@ function buildDeviceView(device) {
     profile,
     category,
     outlets,
+    sources,
     metrics,
     current,
     power,
@@ -251,6 +268,24 @@ function formatLastPoll(value) {
                 :title="`${outlet.number}. ${outlet.name}: ${outlet.on ? 'On' : 'Off'}`"
               >{{ outlet.number }}</span>
               <em v-if="device.outlets.length === 0">No outlet data</em>
+            </div>
+          </div>
+          <div v-else-if="device.category === 'ats'" class="source-summary">
+            <span class="source-summary-label">Sources</span>
+            <div class="source-list">
+              <div
+                v-for="source in device.sources"
+                :key="source.id"
+                class="source-pill"
+                :class="{ active: device.state?.online && source.active, offline: !device.state?.online }"
+                :title="`${source.name}: ${source.voltage}, ${source.status}`"
+              >
+                <span>{{ source.id }}</span>
+                <div>
+                  <strong>{{ source.name }}</strong>
+                  <small>{{ device.state?.online ? `${source.voltage} · ${source.status}` : 'Offline' }}</small>
+                </div>
+              </div>
             </div>
           </div>
           <div v-else class="device-poll">
@@ -487,7 +522,8 @@ function formatLastPoll(value) {
 
 .device-metrics span,
 .device-poll span,
-.outlet-summary-label {
+.outlet-summary-label,
+.source-summary-label {
   display: block;
   color: var(--ui-muted);
   font-size: 10px;
@@ -540,6 +576,71 @@ function formatLastPoll(value) {
   font-style: normal;
 }
 
+.source-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.source-pill {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  padding: 6px 7px;
+  border: 1px solid var(--ui-border-strong);
+  border-radius: 8px;
+  background: var(--ui-bg-soft);
+}
+
+.source-pill > span {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  color: var(--ui-muted);
+  background: var(--ui-panel);
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.source-pill strong,
+.source-pill small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-pill strong {
+  color: var(--ui-text);
+  font-size: 10px;
+}
+
+.source-pill small {
+  margin-top: 1px;
+  color: var(--ui-muted);
+  font-size: 9px;
+}
+
+.source-pill.active {
+  border-color: color-mix(in srgb, var(--ui-success) 48%, var(--ui-border));
+  background: var(--ui-success-soft);
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ui-success) 24%, transparent);
+}
+
+.source-pill.active > span {
+  color: var(--ui-success);
+  background: color-mix(in srgb, var(--ui-success) 13%, var(--ui-panel));
+}
+
+.source-pill.offline {
+  opacity: 0.58;
+}
+
 .device-chevron {
   width: 18px;
   color: var(--ui-muted);
@@ -586,6 +687,7 @@ function formatLastPoll(value) {
 
   .device-metrics,
   .outlet-summary,
+  .source-summary,
   .device-poll {
     grid-column: 1;
   }
