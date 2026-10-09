@@ -1,5 +1,5 @@
 # Build stage for frontend
-FROM node:20-alpine AS frontend-builder
+FROM node:24-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
@@ -8,7 +8,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # Build stage for Go backend
-FROM golang:1.24-alpine AS backend-builder
+FROM golang:1.26-alpine AS backend-builder
 
 RUN apk add --no-cache gcc musl-dev
 
@@ -25,7 +25,7 @@ COPY --from=frontend-builder /app/frontend/dist ./internal/embed/frontend/
 RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-w -s" -o /snmp-bridge ./cmd/snmp-bridge
 
 # Final stage
-FROM alpine:3.19
+FROM alpine:3.24
 
 RUN apk add --no-cache \
     ca-certificates \

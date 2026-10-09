@@ -1,5 +1,5 @@
 # Home Assistant Addon Dockerfile
-ARG BUILD_FROM=ghcr.io/hassio-addons/base:15.0.8
+ARG BUILD_FROM=ghcr.io/hassio-addons/base:21.0.8
 ARG BUILD_ARCH=amd64
 FROM ${BUILD_FROM}
 

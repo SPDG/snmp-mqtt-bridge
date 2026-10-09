@@ -22,7 +22,7 @@ jobs:
 
     strategy:
       matrix:
-        arch: [amd64, aarch64, armv7, armhf, i386]
+        arch: [amd64, aarch64]
         include:
           - arch: amd64
             go_arch: amd64
@@ -30,17 +30,6 @@ jobs:
           - arch: aarch64
             go_arch: arm64
             platform: linux/arm64
-          - arch: armv7
-            go_arch: arm
-            go_arm: 7
-            platform: linux/arm/v7
-          - arch: armhf
-            go_arch: arm
-            go_arm: 6
-            platform: linux/arm/v6
-          - arch: i386
-            go_arch: 386
-            platform: linux/386
 
     steps:
       - name: Checkout
@@ -49,7 +38,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -62,7 +51,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.26.9'
 
       - name: Copy frontend to embed
         run: |
@@ -131,7 +120,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for arch in amd64 aarch64 armv7 armhf i386; do
+          for arch in amd64 aarch64; do
             echo "Setting visibility for snmp-mqtt-bridge/${arch}..."
             gh api \
               --method PATCH \

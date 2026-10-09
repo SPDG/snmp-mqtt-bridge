@@ -32,8 +32,8 @@ Additional profiles can be added via YAML configuration files.
 
 ### Prerequisites
 
-- Go 1.22 or later
-- Node.js 18+ (for frontend development)
+- Go 1.26 or later
+- Node.js 24+ (for frontend development)
 - MQTT broker (e.g., Mosquitto)
 
 ### Installation
@@ -53,7 +53,8 @@ Additional profiles can be added via YAML configuration files.
    cd ..
 
    # Copy frontend to embed directory
-   cp -r frontend/dist internal/api/static/
+   mkdir -p internal/embed/frontend
+   cp -r frontend/dist/* internal/embed/frontend/
 
    # Build Go binary
    go build -o snmp-bridge ./cmd/snmp-bridge
