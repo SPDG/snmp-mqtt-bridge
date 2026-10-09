@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.0.19] - 2026-10-09
+
+### Changed
+
+- Update the Go toolchain to 1.26.9 and refresh Gin, gosnmp, GORM, and related modules.
+- Patch frontend dependencies, including Vue 3.5.43.
+- Build container images with Node.js 24, Alpine 3.24, and Home Assistant base image 21.0.8.
+- Publish the Home Assistant app for amd64 and aarch64 only. The current base image no longer provides armv7, armhf, or i386.
+
+### Fixed
+
+- Build with the Go version required by the module, and embed the frontend from `internal/embed/frontend`.
+
 ## [0.0.18] - 2026-07-15
 
 ### Changed
