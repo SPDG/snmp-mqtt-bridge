@@ -88,7 +88,7 @@ A Go application that bridges SNMP devices (UPS, ATS, PDU) to Home Assistant via
 
 | Component | Technology |
 |-----------|------------|
-| Backend | Go 1.22+ |
+| Backend | Go 1.26+ |
 | Web Framework | Gin |
 | SNMP | gosnmp |
 | MQTT | paho.mqtt.golang |
