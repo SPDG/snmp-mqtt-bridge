@@ -849,7 +849,7 @@ function getValueByMapping(mapping) {
     </div>
 
     <!-- Edit Modal -->
-    <div v-if="showEditModal" class="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-80 flex items-center justify-center z-50">
+    <div v-if="showEditModal" class="fixed inset-0 bg-black/50 dark:bg-black/80 flex items-center justify-center z-50">
       <div class="bg-white dark:bg-dracula-current rounded-lg shadow-xl w-full max-w-lg mx-4">
         <div class="px-6 py-4 border-b dark:border-dracula-comment/40 flex justify-between items-center">
           <h2 class="text-lg font-semibold dark:text-dracula-fg">Edit Device Settings</h2>

@@ -353,7 +353,7 @@ async function toggleDeviceEnabled(device) {
     </section>
 
     <!-- Modal -->
-    <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div v-if="showModal" class="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50">
       <div class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
         <div class="px-6 py-4 border-b">
           <h2 class="text-lg font-semibold">{{ editingDevice ? 'Edit Device' : 'Add Device' }}</h2>

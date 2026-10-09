@@ -1,6 +1,36 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-dracula-bg: #101315;
+  --color-dracula-current: #171b1f;
+  --color-dracula-selection: #22282e;
+  --color-dracula-fg: #eef3f8;
+  --color-dracula-comment: #8d9aa8;
+  --color-dracula-cyan: #34aaf4;
+  --color-dracula-green: #44df83;
+  --color-dracula-orange: #ff9f0a;
+  --color-dracula-pink: #44cfc1;
+  --color-dracula-purple: #1c8ad7;
+  --color-dracula-red: #ff7b72;
+  --color-dracula-yellow: #eef3f8;
+}
+
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
 
 :root {
   color-scheme: light;
@@ -412,7 +442,7 @@ select {
 
 /* Inputs */
 .input {
-  @apply w-full px-3 py-2 focus:outline-none;
+  @apply w-full px-3 py-2 focus:outline-hidden;
   border: 1px solid var(--ui-border-strong);
   border-radius: 9px;
   background: var(--ui-bg-soft);
@@ -584,10 +614,6 @@ select {
 
 .dark tbody tr:hover {
   background: var(--ui-panel-strong);
-}
-
-.dark .bg-black.bg-opacity-50 {
-  background-color: rgba(0, 0, 0, 0.72);
 }
 
 .dark .bg-white.rounded-lg.shadow-xl,
