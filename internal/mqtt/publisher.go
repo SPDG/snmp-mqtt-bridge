@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -594,34 +595,72 @@ func convertToSwitchValue(value interface{}) string {
 	return "OFF"
 }
 
-// calculatePowerIfNeeded calculates Active Power from Voltage × Current if not available
+// calculatePowerIfNeeded fills missing power from voltage × current.
+// Outlet power uses the outlet voltage when the device reports one, otherwise the PDU voltage.
 func (p *Publisher) calculatePowerIfNeeded(values map[string]interface{}) {
-	// Check if Active Power is 0 or missing
-	activePower, hasPower := values["Active Power"]
-	powerIsZero := !hasPower
-
-	if hasPower {
-		switch v := activePower.(type) {
-		case float64:
-			powerIsZero = v == 0
-		case int:
-			powerIsZero = v == 0
-		case string:
-			powerIsZero = v == "0" || v == ""
-		}
+	voltage := positiveFloat(values["Voltage"])
+	if voltage == 0 {
+		voltage = positiveFloat(values["Output Voltage"])
 	}
 
-	if powerIsZero {
-		// Try to calculate from Voltage × Total Current
-		voltage := toFloat64(values["Voltage"])
+	if !hasPositivePower(values["Active Power"]) {
 		current := toFloat64(values["Total Current"])
-
 		if voltage > 0 && current > 0 {
-			calculatedPower := voltage * current
-			// Round to 1 decimal place
-			values["Active Power"] = float64(int(calculatedPower*10)) / 10
+			values["Active Power"] = roundToTenth(voltage * current)
 		}
 	}
+
+	for name := range values {
+		index, ok := outletMeasurementIndex(name, " Current")
+		if !ok {
+			continue
+		}
+		powerKey := "Outlet " + index + " Power"
+		if hasPositivePower(values[powerKey]) {
+			continue
+		}
+		outletVoltage := positiveFloat(values["Outlet "+index+" Voltage"])
+		if outletVoltage == 0 {
+			outletVoltage = voltage
+		}
+		if outletVoltage <= 0 {
+			continue
+		}
+		values[powerKey] = roundToTenth(outletVoltage * toFloat64(values[name]))
+	}
+}
+
+func hasPositivePower(value interface{}) bool {
+	return toFloat64(value) > 0
+}
+
+func outletMeasurementIndex(name, suffix string) (string, bool) {
+	const prefix = "Outlet "
+	if !strings.HasPrefix(name, prefix) || !strings.HasSuffix(name, suffix) {
+		return "", false
+	}
+	index := strings.TrimSuffix(strings.TrimPrefix(name, prefix), suffix)
+	if index == "" {
+		return "", false
+	}
+	for _, r := range index {
+		if r < '0' || r > '9' {
+			return "", false
+		}
+	}
+	return index, true
+}
+
+func positiveFloat(v interface{}) float64 {
+	value := toFloat64(v)
+	if value < 0 {
+		return 0
+	}
+	return value
+}
+
+func roundToTenth(value float64) float64 {
+	return math.Round(value*10) / 10
 }
 
 // toFloat64 converts various types to float64

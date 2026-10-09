@@ -29,8 +29,8 @@ type PollerService struct {
 	deviceRepo  repository.DeviceRepository
 	profileRepo repository.ProfileRepository
 
-	devices     map[string]*devicePoller
-	devicesMu   sync.RWMutex
+	devices   map[string]*devicePoller
+	devicesMu sync.RWMutex
 
 	states   map[string]*domain.DeviceState
 	statesMu sync.RWMutex
@@ -403,18 +403,68 @@ func (s *PollerService) doPoll(dp *devicePoller) {
 	}
 }
 
-// calculateDerivedValues computes values that can be derived from other measurements
+// calculateDerivedValues computes values that can be derived from other measurements.
+// Outlet power uses the outlet voltage when the device reports one, otherwise the PDU voltage.
 func (s *PollerService) calculateDerivedValues(values map[string]interface{}) {
-	// Calculate Active Power if it's 0 or missing (P = V × I)
-	activePower := toFloat64(values["Active Power"])
-	if activePower == 0 {
-		voltage := toFloat64(values["Voltage"])
+	voltage := positiveFloat(values["Voltage"])
+	if voltage == 0 {
+		voltage = positiveFloat(values["Output Voltage"])
+	}
+
+	if toFloat64(values["Active Power"]) == 0 {
 		current := toFloat64(values["Total Current"])
 		if voltage > 0 && current > 0 {
-			// Round to 1 decimal place
-			values["Active Power"] = math.Round(voltage*current*10) / 10
+			values["Active Power"] = roundToTenth(voltage * current)
 		}
 	}
+
+	for name := range values {
+		index, ok := outletMeasurementIndex(name, " Current")
+		if !ok {
+			continue
+		}
+		powerKey := "Outlet " + index + " Power"
+		if toFloat64(values[powerKey]) > 0 {
+			continue
+		}
+		outletVoltage := positiveFloat(values["Outlet "+index+" Voltage"])
+		if outletVoltage == 0 {
+			outletVoltage = voltage
+		}
+		if outletVoltage <= 0 {
+			continue
+		}
+		values[powerKey] = roundToTenth(outletVoltage * toFloat64(values[name]))
+	}
+}
+
+func outletMeasurementIndex(name, suffix string) (string, bool) {
+	const prefix = "Outlet "
+	if !strings.HasPrefix(name, prefix) || !strings.HasSuffix(name, suffix) {
+		return "", false
+	}
+	index := strings.TrimSuffix(strings.TrimPrefix(name, prefix), suffix)
+	if index == "" {
+		return "", false
+	}
+	for _, r := range index {
+		if r < '0' || r > '9' {
+			return "", false
+		}
+	}
+	return index, true
+}
+
+func positiveFloat(v interface{}) float64 {
+	value := toFloat64(v)
+	if value < 0 {
+		return 0
+	}
+	return value
+}
+
+func roundToTenth(value float64) float64 {
+	return math.Round(value*10) / 10
 }
 
 // toFloat64 converts various types to float64
