@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.0.21] - 2026-10-09
+
+### Fixed
+
+- Calculate per-outlet power from voltage and current when the PDU does not report it.
+
 ## [0.0.20] - 2026-10-09
 
 ### Changed
