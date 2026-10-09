@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.0.20] - 2026-10-09
+
+### Changed
+
+- Upgrade the frontend build to Vite 8 and Tailwind CSS 4.
+- Move the Dracula palette into CSS and keep dark mode tied to the `.dark` class.
+
 ## [0.0.19] - 2026-10-09
 
 ### Changed
