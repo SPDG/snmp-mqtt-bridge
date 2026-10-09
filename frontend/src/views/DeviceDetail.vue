@@ -138,12 +138,20 @@ const outlets = computed(() => {
   const result = []
   const now = Date.now()
   const PENDING_TIMEOUT = 10000 // 10 seconds
+  const deviceVoltage = toNumber(state.value.values.Voltage) ?? toNumber(state.value.values['Output Voltage'])
 
   for (const i of getOutletNumbers()) {
     const name = cleanName(state.value.values[`Outlet ${i} Name`], `Outlet ${i}`)
     let stateVal = state.value.values[`Outlet ${i} State`]
     const current = toNumber(state.value.values[`Outlet ${i} Current`])
-    const power = toNumber(state.value.values[`Outlet ${i} Power`])
+    const measuredPower = toNumber(state.value.values[`Outlet ${i} Power`])
+    const outletVoltage = toNumber(state.value.values[`Outlet ${i} Voltage`])
+    const voltage = outletVoltage !== null && outletVoltage > 0 ? outletVoltage : deviceVoltage
+    const power = measuredPower !== null && measuredPower > 0
+      ? measuredPower
+      : voltage !== null && voltage > 0 && current !== null
+        ? Math.round(voltage * current * 10) / 10
+        : measuredPower
     const energy = toNumber(state.value.values[`Outlet ${i} Energy`])
 
     // Check if there's a pending state that should override poll data
