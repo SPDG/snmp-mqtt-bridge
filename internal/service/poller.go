@@ -190,25 +190,28 @@ func (s *PollerService) RemoveDevice(id string) {
 	s.statesMu.Unlock()
 }
 
-// GetDeviceState returns the current state of a device
+// GetDeviceState returns a snapshot of the current state of a device.
+// The Values map is a copy, so callers can encode it while polling updates the live state.
 func (s *PollerService) GetDeviceState(id string) *domain.DeviceState {
 	s.statesMu.RLock()
 	defer s.statesMu.RUnlock()
 
-	if state, exists := s.states[id]; exists {
-		return state
+	state, exists := s.states[id]
+	if !exists {
+		return nil
 	}
-	return nil
+	return cloneDeviceState(state)
 }
 
-// GetAllDeviceStates returns all device states
+// GetAllDeviceStates returns snapshots of all device states.
+// Values maps are copies, so callers can encode them while polling updates the live state.
 func (s *PollerService) GetAllDeviceStates() map[string]*domain.DeviceState {
 	s.statesMu.RLock()
 	defer s.statesMu.RUnlock()
 
 	result := make(map[string]*domain.DeviceState, len(s.states))
 	for k, v := range s.states {
-		result[k] = v
+		result[k] = cloneDeviceState(v)
 	}
 	return result
 }
@@ -667,23 +670,22 @@ func (s *PollerService) updateState(deviceID string, values map[string]interface
 		}
 	}
 
-	// Copy the full accumulated state values for the event
-	fullValues := make(map[string]interface{}, len(state.Values))
-	for k, v := range state.Values {
-		fullValues[k] = v
-	}
+	// Snapshot the accumulated values before releasing the lock. Subscribers must
+	// not share this map: MQTT power calculation writes into Values while the
+	// WebSocket handler encodes the same update.
+	fullValues := cloneValues(state.Values)
 	s.statesMu.Unlock()
 
-	// Notify subscribers with full accumulated state
-	event := StateUpdateEvent{
-		DeviceID:  deviceID,
-		Timestamp: time.Now(),
-		Values:    fullValues,
-		Online:    online,
-	}
+	eventTime := time.Now()
 
 	s.subMu.RLock()
 	for _, ch := range s.subscribers {
+		event := StateUpdateEvent{
+			DeviceID:  deviceID,
+			Timestamp: eventTime,
+			Values:    cloneValues(fullValues),
+			Online:    online,
+		}
 		select {
 		case ch <- event:
 		default:
@@ -691,6 +693,29 @@ func (s *PollerService) updateState(deviceID string, values map[string]interface
 		}
 	}
 	s.subMu.RUnlock()
+}
+
+func cloneDeviceState(state *domain.DeviceState) *domain.DeviceState {
+	if state == nil {
+		return nil
+	}
+	cloned := *state
+	cloned.Values = cloneValues(state.Values)
+	if state.Errors != nil {
+		cloned.Errors = append([]string(nil), state.Errors...)
+	}
+	return &cloned
+}
+
+func cloneValues(values map[string]interface{}) map[string]interface{} {
+	if values == nil {
+		return nil
+	}
+	cloned := make(map[string]interface{}, len(values))
+	for k, v := range values {
+		cloned[k] = v
+	}
+	return cloned
 }
 
 // normalizeOID strips leading dot from OID for consistent comparison
