@@ -215,6 +215,7 @@ func (h *WebSocketHandler) sendInitialState(client *wsClient) {
 		return
 	}
 
+	// GetAllDeviceStates returns snapshots, so this encode does not touch the live maps.
 	states := h.pollerService.GetAllDeviceStates()
 	msg := map[string]interface{}{
 		"type": "initial_state",
