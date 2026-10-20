@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.0.22] - 2026-10-20
+
+### Fixed
+
+- Copy device state values for each subscriber so MQTT power calculation no longer crashes the bridge while a WebSocket client encodes the same update.
+
 ## [0.0.21] - 2026-10-09
 
 ### Fixed
